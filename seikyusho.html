@@ -1,0 +1,1371 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Free Invoice Generator | 免費請求書產生器</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect x='40' y='40' width='432' height='432' fill='none' stroke='%23D4AF37' stroke-width='16'/%3E%3Cpath d='M140 130 Q256 90 372 130' fill='none' stroke='%23D4AF37' stroke-width='24' stroke-linecap='round'/%3E%3Cline x1='160' y1='160' x2='352' y2='160' stroke='%23D4AF37' stroke-width='24' stroke-linecap='round'/%3E%3Cline x1='190' y1='160' x2='190' y2='210' stroke='%23D4AF37' stroke-width='24' stroke-linecap='round'/%3E%3Cline x1='322' y1='160' x2='322' y2='210' stroke='%23D4AF37' stroke-width='24' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root {
+    --ink: #111;
+    --line: #444;
+    --header-bg: #1e3a5f;
+    --gray-bg: #f5f5f5;
+    --bank-bg: #f0f0f0;
+    --accent: #c0392b;   /* 印章紅 */
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Noto Sans JP', system-ui, sans-serif;
+    background: #e8e9ec;
+    color: var(--ink);
+  }
+
+  /* ---------- App chrome ---------- */
+  .toolbar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 12px 20px; background: #fff; border-bottom: 1px solid #ddd;
+    position: sticky; top: 0; z-index: 20;
+  }
+  .toolbar .brand { display: inline-flex; align-items: center; gap: 9px; font-weight: 900; font-size: 17px; margin-right: auto; }
+  .toolbar .logo-mark { width: 34px; height: 34px; flex: 0 0 auto; display: block; }
+  .btn {
+    font-family: inherit; font-size: 13px; padding: 8px 14px; border-radius: 8px;
+    border: 1px solid #ccc; background: #fff; cursor: pointer; text-decoration: none;
+    transition: background .15s, border-color .15s;
+  }
+  .btn:hover { background: #f2f4f7; border-color: #aaa; }
+  .btn.primary { background: #1e3a5f; color: #fff; border-color: #1e3a5f; }
+  .btn.primary:hover { background: #16304f; }
+  .btn.danger { color: #a33; }
+
+  /* ---------- 語言切換（小地球） ---------- */
+  .lang-switch { position: relative; }
+  .lang-btn {
+    font-family: inherit; font-size: 13px; padding: 8px 12px; border-radius: 8px;
+    border: 1px solid #ccc; background: #fff; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px; color: var(--ink);
+  }
+  .lang-btn:hover { background: #f2f4f7; border-color: #aaa; }
+  .lang-btn .globe { font-size: 15px; line-height: 1; }
+  .lang-btn .caret { font-size: 9px; opacity: .6; }
+  .lang-menu {
+    position: absolute; right: 0; top: calc(100% + 8px);
+    background: #fff; border: 1px solid #ddd; border-radius: 10px;
+    box-shadow: 0 10px 26px rgba(0,0,0,.18); padding: 6px; min-width: 130px;
+    display: none; z-index: 30;
+  }
+  .lang-switch.open .lang-menu { display: block; }
+  .lang-menu button {
+    display: block; width: 100%; text-align: left; font-family: inherit; font-size: 13px;
+    padding: 8px 11px; border: none; background: #fff; cursor: pointer; border-radius: 7px; color: var(--ink);
+  }
+  .lang-menu button:hover { background: #f2f4f7; }
+  .lang-menu button.active { background: #eef2ff; color: #1e3a5f; font-weight: 700; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(340px, 400px) 1fr;
+    gap: 0;
+    align-items: start;
+  }
+
+  /* ---------- Form ---------- */
+  .form-panel {
+    padding: 20px; overflow-y: auto;
+    max-height: calc(100vh - 61px);
+    position: sticky; top: 61px;
+  }
+  .form-panel h2 {
+    font-size: 13px; letter-spacing: .05em; color: #567;
+    text-transform: uppercase; margin: 22px 0 8px;
+    border-bottom: 1px solid #e2e6ea; padding-bottom: 4px;
+  }
+  .form-panel h2:first-child { margin-top: 0; }
+  .field { margin-bottom: 10px; }
+  .field label { display: block; font-size: 12px; color: #455; margin-bottom: 3px; }
+  .field input, .field select, .field textarea {
+    width: 100%; font-family: inherit; font-size: 14px;
+    padding: 8px 10px; border: 1px solid #ccd2d8; border-radius: 7px; background: #fff;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    outline: none; border-color: #1e3a5f; box-shadow: 0 0 0 2px rgba(30,58,95,.12);
+  }
+  .field textarea { resize: vertical; min-height: 52px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .check { display: flex; align-items: center; gap: 8px; font-size: 13px; margin: 6px 0; }
+  .check input { width: auto; }
+
+  .seg { display: inline-flex; border: 1px solid #ccd2d8; border-radius: 8px; overflow: hidden; }
+  .seg button {
+    font-family: inherit; font-size: 13px; padding: 7px 12px; border: none; background: #fff; cursor: pointer;
+  }
+  .seg button.on { background: #1e3a5f; color: #fff; }
+
+  .items-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .items-table th, .items-table td { padding: 4px; text-align: left; }
+  .items-table input, .items-table select {
+    width: 100%; font-family: inherit; font-size: 13px; padding: 6px; border: 1px solid #ccd2d8; border-radius: 6px;
+  }
+  .items-table .amt { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; padding: 4px 6px; }
+  .icon-btn { border: none; background: none; cursor: pointer; color: #a33; font-size: 16px; padding: 2px 6px; }
+  .icon-btn:hover { color: #600; }
+  .mini-btn { font-family: inherit; font-size: 12px; padding: 6px 10px; border-radius: 6px; border: 1px dashed #99a; background: #fff; cursor: pointer; }
+  .mini-btn:hover { background: #f2f4f7; }
+
+  .upload-box {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    border: 1px dashed #b7bec6; border-radius: 8px; padding: 10px;
+    background: #fafbfc; margin-bottom: 8px;
+  }
+  .upload-box img { width: 40px; height: 40px; object-fit: contain; border: 1px solid #eee; border-radius: 5px; background: #fff; }
+  .upload-box .upload-label { flex: 1 1 120px; font-size: 12px; color: #567; }
+  .upload-box button { font-family: inherit; font-size: 12px; padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
+  .upload-box .clear { color: #a33; }
+
+  .summary-box { background: #f7f8fa; border: 1px solid #e2e6ea; border-radius: 9px; padding: 12px 14px; font-size: 13px; }
+  .summary-box .row { display: flex; justify-content: space-between; padding: 2px 0; }
+  .summary-box .row.total { font-weight: 700; border-top: 1px solid #dde2e6; margin-top: 6px; padding-top: 6px; font-size: 15px; }
+
+  .draft-list { display: flex; flex-direction: column; gap: 6px; }
+  .draft-item { display: flex; align-items: center; gap: 8px; font-size: 12px; background: #fff; border: 1px solid #e2e6ea; border-radius: 7px; padding: 6px 9px; }
+  .draft-item .meta { flex: 1; min-width: 0; }
+  .draft-item .meta b { display: block; font-size: 13px; }
+  .draft-item .meta span { color: #789; }
+  .draft-item button { font-family: inherit; font-size: 11px; padding: 4px 8px; border-radius: 6px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
+  .hint { font-size: 11px; color: #98a; margin-top: 6px; line-height: 1.5; }
+
+  /* ---------- Preview ---------- */
+  .preview-col {
+    padding: 24px;
+    display: flex; justify-content: center; align-items: flex-start;
+  }
+  .paper-shadow { box-shadow: 0 8px 30px rgba(20,30,50,.18); }
+
+  .invoice-page {
+    width: 794px; min-height: 1123px;
+    background: #fff; padding: 52px 56px 40px;
+    position: relative; color: #111;
+    font-size: 14px; line-height: 1.55;
+  }
+
+  .top-right { text-align: right; margin-bottom: 6px; }
+  .top-right .date { font-size: 15px; }
+  .top-right .inv-no { font-size: 15px; margin-top: 2px; }
+
+  .doc-title {
+    text-align: center; font-size: 34px; font-weight: 900;
+    letter-spacing: .2em; margin: 26px 0 30px;
+  }
+
+  .party-row { display: flex; justify-content: space-between; align-items: flex-start; }
+  .party-left .recipient { font-size: 19px; font-weight: 700; margin-bottom: 8px; }
+  .party-left .subject { font-size: 14px; margin-bottom: 6px; }
+  .party-left .fixed-note { font-size: 14px; margin-top: 4px; }
+
+  /* 發行人區塊：公司角印置於右側，與 PDF 高谷請求書一致 */
+  .party-right {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    min-width: 360px;
+  }
+  .party-right .issuer-col {
+    flex: 1 1 auto;
+    text-align: right;
+  }
+  .party-right .company-seal-slot {
+    flex: 0 0 auto;
+    align-self: center;
+  }
+
+  .issuer-logo {
+    width: 56px; height: 56px; margin-left: auto; margin-bottom: 12px;
+    border-radius: 10px; background: #1e3a5f; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 15px; letter-spacing: .05em; overflow: hidden;
+  }
+  /* 上傳圖片時：移除預設藍底，避免透明 logo 透出藍色造成「半透明/模糊」觀感 */
+  .issuer-logo.has-image {
+    background: #ffffff;
+    border: 1px solid #e2e6ea;
+    padding: 2px;
+  }
+  .issuer-logo img {
+    width: 100%; height: 100%; object-fit: contain;
+    image-rendering: -webkit-optimize-contrast;
+  }
+
+  .issuer-name-row {
+    display: flex; align-items: center; justify-content: flex-end;
+    gap: 10px; margin-bottom: 6px;
+  }
+  .issuer-name { font-size: 16px; font-weight: 700; }
+  .issuer-detail { font-size: 13px; color: #222; }
+
+  /* ---------- 印章元件（refactor 重點） ---------- */
+  /* 公司印章：方型紅印（角印），置於發行人資訊右側 */
+  .seal.company {
+    width: 86px; height: 86px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,.18);
+  }
+  /* 上傳圖片時：移除預設紅底，避免透明印章透出紅色造成「半透明」觀感 */
+  .seal.company.has-image {
+    background: #ffffff;
+    border: 1px solid #e2e6ea;
+    padding: 2px;
+  }
+  .seal.company img {
+    width: 100%; height: 100%; object-fit: contain;
+    image-rendering: -webkit-optimize-contrast;
+  }
+  .seal.company .seal-text {
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+    font-family: 'Noto Sans JP', serif;
+    font-weight: 900;
+    font-size: 22px;
+    letter-spacing: 6px;
+    line-height: 1;
+    color: rgba(255,255,255,.95);
+    padding: 8px 4px;
+    max-height: 78px;
+  }
+
+  /* 個人印章：姓名旁的斜置小印 */
+  .seal.personal {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 52px; height: 52px;
+    border: 2.5px solid var(--accent);
+    color: var(--accent);
+    border-radius: 8px;
+    font-weight: 900; font-size: 12px;
+    line-height: 1.2; text-align: center;
+    transform: rotate(-12deg);
+    background: transparent;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .seal.personal img { width: 100%; height: 100%; object-fit: contain; transform: none; }
+  .seal.hidden { display: none !important; }
+
+  .amount-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--gray-bg); border: 1px solid #ddd;
+    padding: 12px 20px; margin: 28px 0 24px;
+  }
+  .amount-bar .lbl { font-size: 15px; font-weight: 700; }
+  .amount-bar .val { font-size: 26px; font-weight: 900; letter-spacing: .02em; }
+
+  table.items { width: 100%; border-collapse: collapse; }
+  table.items th, table.items td { border: 1px solid #444; padding: 8px 10px; }
+  table.items thead th { background: var(--header-bg); color: #fff; font-weight: 700; font-size: 13.5px; }
+  table.items td { font-size: 13.5px; }
+  table.items .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.items .desc { text-align: left; }
+  table.items th:nth-child(1) { width: 40%; }
+  table.items th:nth-child(2) { width: 16%; }
+  table.items th:nth-child(3) { width: 20%; }
+  table.items th:nth-child(4) { width: 24%; }
+
+  .totals { margin-top: 14px; display: flex; justify-content: flex-end; }
+  .totals .tbl { min-width: 300px; }
+  .totals .trow { display: flex; justify-content: space-between; padding: 6px 4px; font-size: 14px; }
+  .totals .trow.total {
+    font-weight: 900; font-size: 17px;
+    border-top: 2px solid #444; margin-top: 4px; padding-top: 8px;
+  }
+
+  .bank-section { background: var(--bank-bg); border: 1px solid #e0e0e0; padding: 16px 18px; margin-top: 30px; }
+  .bank-section .bank-title { font-weight: 700; font-size: 14px; margin-bottom: 10px; }
+  .banks { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .banks.one { grid-template-columns: 1fr; }
+  .bank-box { font-size: 13px; line-height: 1.7; }
+  .bank-box .bname { font-weight: 700; font-size: 14px; }
+
+  .footer-note { text-align: center; font-size: 10px; color: #99a; margin-top: 26px; }
+
+  /* ---------- 使用說明彈窗 ---------- */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 60;
+    background: rgba(15,25,40,.5);
+    display: none; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: #fff; border-radius: 16px; max-width: 560px; width: 100%;
+    max-height: 86vh; overflow-y: auto; box-shadow: 0 24px 60px rgba(0,0,0,.3);
+  }
+  .modal-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 22px; border-bottom: 1px solid #eef1f5; position: sticky; top: 0; background: #fff;
+  }
+  .modal-head h2 { font-size: 18px; margin: 0; color: #16263d; }
+  .modal-close {
+    border: none; background: #f1f3f6; color: #445; cursor: pointer;
+    width: 34px; height: 34px; border-radius: 9px; font-size: 18px; line-height: 1;
+  }
+  .modal-close:hover { background: #e6e9ee; }
+  .modal-body { padding: 20px 22px 24px; }
+  .modal-body ol { margin: 0; padding-left: 20px; }
+  .modal-body li { font-size: 14px; color: #3a4759; line-height: 1.75; margin-bottom: 10px; }
+  .modal-body li b { color: #16263d; }
+  .modal-body .tip {
+    margin-top: 14px; font-size: 12.5px; color: #6a788c;
+    background: #f6f8fa; border: 1px solid #e6eaf0; border-radius: 10px; padding: 12px 14px; line-height: 1.6;
+  }
+  .modal-body .tip b { color: #c0392b; }
+
+  /* ---------- Print ---------- */
+  @page { size: A4; margin: 0; }
+  @media print {
+    body { background: #fff; }
+    .no-print { display: none !important; }
+    .layout { display: block; }
+    .preview-col { display: block; padding: 0; }
+    .invoice-page { box-shadow: none !important; margin: 0 auto; }
+  }
+
+  @media (max-width: 1100px) {
+    .layout { grid-template-columns: 1fr; }
+    .form-panel { position: static; max-height: none; }
+    .preview-col { overflow-x: auto; justify-content: flex-start; padding: 14px; }
+  }
+
+  /* 行動端：縮小工具列與按鈕，避免溢出 */
+  @media (max-width: 640px) {
+    .toolbar { gap: 6px; padding: 10px 12px; }
+    .toolbar .brand { font-size: 15px; }
+    .btn { font-size: 12px; padding: 7px 10px; border-radius: 7px; }
+    .lang-btn { font-size: 12px; padding: 7px 10px; }
+    .preview-col { padding: 10px; }
+    .form-panel { padding: 14px; }
+    .field label { font-size: 11px; }
+    .items-table input, .items-table select { font-size: 12px; padding: 5px; }
+  }
+
+  /* 行動端發票：當容器寬度 < A4（794px）時由 JS 加上 .is-mobile，
+     將固定 A4 排版改為寬度 100% 的回流式版面，確保可讀且不溢位。 */
+  .invoice-page.is-mobile {
+    width: 100% !important;
+    min-width: 0;
+    min-height: 0;
+    padding: 22px 18px;
+    font-size: 13.5px;
+    line-height: 1.6;
+  }
+  .invoice-page.is-mobile .top-right { text-align: left; margin-bottom: 4px; }
+  .invoice-page.is-mobile .doc-title { font-size: 26px; letter-spacing: .15em; margin: 16px 0 18px; }
+  .invoice-page.is-mobile .party-row { flex-direction: column; gap: 16px; align-items: stretch; }
+  .invoice-page.is-mobile .party-left .recipient { font-size: 17px; margin-bottom: 6px; }
+  .invoice-page.is-mobile .party-left .subject { font-size: 13.5px; }
+  .invoice-page.is-mobile .party-left .fixed-note { font-size: 13px; }
+  .invoice-page.is-mobile .party-right { min-width: 0; width: 100%; gap: 14px; flex-direction: row; align-items: flex-start; }
+  .invoice-page.is-mobile .party-right .issuer-col { text-align: left; }
+  .invoice-page.is-mobile .party-right .issuer-logo { margin-left: 0; margin-bottom: 8px; }
+  .invoice-page.is-mobile .party-right .issuer-name-row { justify-content: flex-start; gap: 8px; }
+  .invoice-page.is-mobile .party-right .company-seal-slot { align-self: flex-start; }
+  .invoice-page.is-mobile .amount-bar { padding: 10px 14px; margin: 20px 0 18px; flex-wrap: wrap; gap: 6px; }
+  .invoice-page.is-mobile .amount-bar .lbl { font-size: 14px; }
+  .invoice-page.is-mobile .amount-bar .val { font-size: 22px; }
+  .invoice-page.is-mobile table.items th,
+  .invoice-page.is-mobile table.items td { padding: 6px 8px; font-size: 12px; }
+  .invoice-page.is-mobile table.items thead th { font-size: 12px; }
+  .invoice-page.is-mobile .totals { margin-top: 10px; }
+  .invoice-page.is-mobile .totals .trow { font-size: 13px; padding: 5px 2px; }
+  .invoice-page.is-mobile .totals .trow.total { font-size: 15px; }
+  .invoice-page.is-mobile .bank-section { padding: 12px 14px; margin-top: 20px; }
+  .invoice-page.is-mobile .banks { grid-template-columns: 1fr; gap: 10px; }
+  .invoice-page.is-mobile .bank-box { font-size: 12px; line-height: 1.7; }
+  .invoice-page.is-mobile .bank-box .bname { font-size: 13px; }
+  .invoice-page.is-mobile .seal.company { width: 74px; height: 74px; overflow: hidden; }
+  .invoice-page.is-mobile .seal.company .seal-text {
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    line-height: 1.05;
+    padding: 4px 3px;
+    max-height: 66px;
+    overflow: hidden;
+  }
+  .invoice-page.is-mobile .seal.personal { width: 44px; height: 44px; font-size: 11px; }
+  .invoice-page.is-mobile .footer-note { font-size: 9px; margin-top: 18px; }
+  /* 列印時恢復 A4 */
+  @media print {
+    .invoice-page.is-mobile { width: 794px !important; min-height: 1123px; padding: 52px 56px 40px; font-size: 14px; }
+    .invoice-page.is-mobile .doc-title { font-size: 34px; letter-spacing: .2em; margin: 26px 0 30px; }
+    .invoice-page.is-mobile .amount-bar .val { font-size: 26px; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- ===================== 使用說明彈窗 ===================== -->
+  <div class="modal-overlay no-print" id="helpModal" onclick="if(event.target===this)closeHelp()">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="使用說明">
+      <div class="modal-head">
+        <h2 data-i18n="help_title">使用說明</h2>
+        <button class="modal-close" onclick="closeHelp()" aria-label="關閉">✕</button>
+      </div>
+      <div class="modal-body">
+        <ol>
+          <li><b data-i18n="help_li1_b">填寫發行人資訊</b>：<span data-i18n="help_li1">輸入姓名 / 会社名、郵便番号、住所、TEL。</span></li>
+          <li><b data-i18n="help_li2_b">設定印章</b>：<span data-i18n="help_li2">上傳或填寫「公司印章（角印）」與「個人印章（印鑑）」；亦可上傳 Logo。</span></li>
+          <li><b data-i18n="help_li3_b">填寫請求內容</b>：<span data-i18n="help_li3">設定受取人、件名、日期與格式（令和 / 西曆），可自動產生請求書番号。</span></li>
+          <li><b data-i18n="help_li4_b">新增明細</b>：<span data-i18n="help_li4">點「＋ 明細行を追加」，填寫品目、數量、単位、単価，金額自動計算。</span></li>
+          <li><b data-i18n="help_li5_b">稅金與振込先</b>：<span data-i18n="help_li5">設定消費稅率與課稅開關，填寫銀行帳號（可切換第二組）。</span></li>
+          <li><b data-i18n="help_li6_b">儲存與匯出</b>：<span data-i18n="help_li6">草稿自動存於本機；點「PDF 下載」或「列印」取得正式請求書。</span></li>
+        </ol>
+        <div class="tip"><b data-i18n="help_tip_b">隱私提示：</b><span data-i18n="help_tip">所有資料僅保存在你的瀏覽器本機（localStorage），不會上傳任何伺服器。</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toolbar no-print">
+    <span class="brand"><svg class="logo-mark" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><defs><style>.gold-line{stroke:#D4AF37;fill:none;stroke-width:6;}.gold-fill{fill:#D4AF37;}.torii-line{stroke:#D4AF37;stroke-width:10;stroke-linecap:round;}.title-text{fill:#D4AF37;font-family:"Noto Serif JP","Times New Roman",serif;font-weight:700;}.sub-text{fill:#D4AF37;font-family:"Noto Sans JP","Helvetica",sans-serif;letter-spacing:4px;}</style></defs><rect x="40" y="40" width="432" height="432" class="gold-line"/><rect x="70" y="70" width="372" height="372" class="gold-line"/><path d="M140 130 Q256 90 372 130" class="torii-line" fill="none"/><line x1="160" y1="160" x2="352" y2="160" class="torii-line"/><line x1="190" y1="160" x2="190" y2="210" class="torii-line"/><line x1="322" y1="160" x2="322" y2="210" class="torii-line"/><text x="256" y="280" text-anchor="middle" font-size="40" class="title-text">Free Invoice</text><text x="256" y="325" text-anchor="middle" font-size="20" class="sub-text">GENERATOR</text><line x1="180" y1="350" x2="332" y2="350" class="gold-line"/><line x1="200" y1="370" x2="312" y2="370" class="gold-line"/><polygon points="256,360 266,370 256,380 246,370" class="gold-fill"/></svg> Free Invoice Generator</span>
+    <a class="btn" href="index.html" data-i18n="back_home">← 返回主頁</a>
+    <button class="btn" onclick="openHelp()" data-i18n="toolbar_help">使用說明</button>
+    <button class="btn primary" onclick="downloadPDF()" data-i18n="toolbar_pdf">PDF 下載</button>
+    <button class="btn" onclick="window.print()" data-i18n="toolbar_print">列印</button>
+    <button class="btn" onclick="saveDraftNow()" data-i18n="toolbar_save">儲存草稿</button>
+    <button class="btn" onclick="duplicateLast()" data-i18n="toolbar_dup">複製上一次</button>
+    <button class="btn danger" onclick="resetAll()" data-i18n="toolbar_reset">重設</button>
+    <div class="lang-switch" id="langSwitch">
+      <button class="lang-btn" onclick="toggleLangMenu(event)" aria-haspopup="true" aria-expanded="false">
+        <span class="globe">🌐</span><span id="langCurrent">中文</span><span class="caret">▾</span>
+      </button>
+      <div class="lang-menu" id="langMenu">
+        <button data-lang="zh" onclick="setLang('zh')">中文</button>
+        <button data-lang="ja" onclick="setLang('ja')">日本語</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="layout">
+    <!-- ===================== FORM ===================== -->
+    <div class="form-panel no-print">
+
+      <h2 data-i18n="sec_issuer">發行人資訊（右側）</h2>
+      <div class="field"><label data-i18n="lbl_name">姓名 / 会社名</label><input id="issuer-name" placeholder="高谷承志"></div>
+      <div class="row2">
+        <div class="field"><label data-i18n="lbl_postal">郵便番号 〒</label><input id="issuer-postal" placeholder="332-0023"></div>
+        <div class="field"><label data-i18n="lbl_tel">TEL</label><input id="issuer-tel" placeholder="09036217277"></div>
+      </div>
+      <div class="field"><label data-i18n="lbl_address">住所</label><input id="issuer-address" placeholder="埼玉県川口市飯塚 5-15-24"></div>
+
+      <!-- Logo：公司角印以外的品牌標誌，獨立配置 -->
+      <div class="upload-box" data-kind="logo">
+        <img id="logo-preview" alt="logo" style="display:none">
+        <div class="upload-label" data-i18n="up_logo">Logo（未上傳則不顯示）</div>
+        <button onclick="document.getElementById('logo-file').click()">上傳</button>
+        <button class="clear" onclick="clearUpload('logo')">清除</button>
+        <input type="file" id="logo-file" accept="image/*" hidden>
+      </div>
+
+      <!-- 公司印章（角印）：預設顯示於請求書右側 -->
+      <div class="upload-box" data-kind="companySeal">
+        <img id="company-seal-preview" alt="公司印章" style="display:none">
+        <div class="upload-label" data-i18n="up_company_seal">公司印章（角印，預設 創喜商事）</div>
+        <button onclick="document.getElementById('company-seal-file').click()">上傳</button>
+        <button class="clear" onclick="clearUpload('companySeal')">清除</button>
+        <input type="file" id="company-seal-file" accept="image/*" hidden>
+      </div>
+      <div class="field" style="margin-top:10px">
+        <label data-i18n="lbl_company_seal_text">公司印章文字（未上傳圖時顯示）</label>
+        <input id="company-seal-text" placeholder="創喜商事">
+      </div>
+
+      <!-- 個人印章（印鑑）：姓名旁的斜置小印，可選 -->
+      <div class="upload-box" data-kind="personalSeal">
+        <img id="personal-seal-preview" alt="個人印章" style="display:none">
+        <div class="upload-label" data-i18n="up_personal_seal">個人印章（印鑑，可選）</div>
+        <button onclick="document.getElementById('personal-seal-file').click()">上傳</button>
+        <button class="clear" onclick="clearUpload('personalSeal')">清除</button>
+        <input type="file" id="personal-seal-file" accept="image/*" hidden>
+      </div>
+      <div class="field" style="margin-top:10px">
+        <label data-i18n="lbl_personal_seal_text">個人印章文字（未上傳圖時顯示）</label>
+        <input id="personal-seal-text" placeholder="印">
+      </div>
+
+      <h2 data-i18n="sec_content">請求內容</h2>
+      <div class="field"><label data-i18n="lbl_recipient">受取人</label><input id="recipient" placeholder="（有）東信 御中"></div>
+      <div class="field"><label data-i18n="lbl_subject">件名</label><input id="subject" placeholder="4月の請求書（渋谷と新宿現場）"></div>
+      <div class="row2">
+        <div class="field">
+          <label data-i18n="lbl_date">日期（西曆）</label>
+          <input type="date" id="date">
+        </div>
+        <div class="field">
+          <label data-i18n="lbl_format">格式</label>
+          <div class="seg" id="era-seg">
+            <button data-era="1" class="on" data-i18n="era_reiwa">令和</button>
+            <button data-era="0" data-i18n="era_western">西曆</button>
+          </div>
+        </div>
+      </div>
+      <div class="check">
+        <input type="checkbox" id="auto-number" checked>
+        <label for="auto-number" data-i18n="auto_no">自動請求書番号（YYYYMMDD-1）</label>
+      </div>
+      <div class="field"><label data-i18n="lbl_inv_no">請求書番号</label><input id="invoice-number" placeholder="20230430-1"></div>
+
+      <h2 data-i18n="sec_items">明細</h2>
+      <table class="items-table">
+        <thead>
+          <tr><th data-i18n="th_item">品目</th><th data-i18n="th_qty">数量</th><th data-i18n="th_unit">単位</th><th data-i18n="th_price">単価</th><th style="text-align:right" data-i18n="th_amt">金額</th><th></th></tr>
+        </thead>
+        <tbody id="items-body"></tbody>
+      </table>
+      <div style="margin-top:8px;display:flex;gap:8px">
+        <button class="mini-btn" onclick="addItem()" data-i18n="btn_add_item">＋ 明細行を追加</button>
+      </div>
+
+      <h2 data-i18n="sec_tax">稅金</h2>
+      <div class="row2">
+        <div class="field"><label data-i18n="lbl_tax_rate">稅率 %</label><input type="number" id="tax-rate" min="0" max="100" step="0.1" placeholder="10"></div>
+        <div class="check" style="margin-top:26px">
+          <input type="checkbox" id="tax-enabled">
+          <label for="tax-enabled" data-i18n="tax_enabled">課稅（加總消費稅）</label>
+        </div>
+      </div>
+
+      <h2 data-i18n="sec_bank">振込先</h2>
+      <div id="bank-forms"></div>
+      <div style="margin-top:8px;display:flex;gap:8px">
+        <button class="mini-btn" onclick="toggleBank2()" data-i18n="btn_toggle_bank">切換第二組帳戶</button>
+      </div>
+
+      <h2 data-i18n="sec_other">其他</h2>
+      <div class="check"><input type="checkbox" id="show-footer" checked><label for="show-footer" data-i18n="footer_chk">顯示底部小字（Free Invoice Generator）</label></div>
+
+      <div class="summary-box" style="margin-top:18px">
+        <div class="row"><span data-i18n="sum_subtotal">小計</span><span id="sum-subtotal">¥0</span></div>
+        <div class="row"><span id="sum-tax-label">消費税 (10%)</span><span id="sum-tax">¥0</span></div>
+        <div class="row total"><span data-i18n="sum_total">合計</span><span id="sum-total">¥0</span></div>
+      </div>
+
+      <h2 data-i18n="sec_draft">草稿（自動保存，最近 10 筆）</h2>
+      <div class="draft-list" id="draft-list"></div>
+      <div class="hint" data-i18n="draft_hint">草稿存於瀏覽器本地（localStorage）。若在此預覽窗內無法存取，將自動改用記憶體暫存（關閉即消失）。建議下載 HTML 檔後用瀏覽器開啟以取得完整草稿功能。</div>
+    </div>
+
+    <!-- ===================== PREVIEW ===================== -->
+    <div class="preview-col" id="printArea">
+      <div class="invoice-page paper-shadow" id="invoicePage"></div>
+    </div>
+  </div>
+
+<script>
+/* ============================================================
+ * Free Invoice Generator — 單一檔案實作
+ * ============================================================ */
+
+/* ---------- 0. i18n（中日雙語） ---------- */
+const I18N = {
+  zh: {
+    page_title: 'Free Invoice Generator | 免費請求書產生器',
+    toolbar_help: '使用說明', toolbar_pdf: 'PDF 下載', toolbar_print: '列印', back_home: '← 返回主頁',
+    toolbar_save: '儲存草稿', toolbar_dup: '複製上一次', toolbar_reset: '重設',
+    help_title: '使用說明',
+    help_li1_b: '填寫發行人資訊', help_li1: '輸入姓名 / 会社名、郵便番号、住所、TEL。',
+    help_li2_b: '設定印章', help_li2: '上傳或填寫「公司印章（角印）」與「個人印章（印鑑）」；亦可上傳 Logo。',
+    help_li3_b: '填寫請求內容', help_li3: '設定受取人、件名、日期與格式（令和 / 西曆），可自動產生請求書番号。',
+    help_li4_b: '新增明細', help_li4: '點「＋ 明細行を追加」，填寫品目、數量、単位、単価，金額自動計算。',
+    help_li5_b: '稅金與振込先', help_li5: '設定消費稅率與課稅開關，填寫銀行帳號（可切換第二組）。',
+    help_li6_b: '儲存與匯出', help_li6: '草稿自動存於本機；點「PDF 下載」或「列印」取得正式請求書。',
+    help_tip_b: '隱私提示：', help_tip: '所有資料僅保存在你的瀏覽器本機（localStorage），不會上傳任何伺服器。',
+    sec_issuer: '發行人資訊（右側）', sec_content: '請求內容', sec_items: '明細', sec_tax: '稅金', sec_bank: '振込先', sec_other: '其他', sec_draft: '草稿（自動保存，最近 10 筆）',
+    lbl_name: '姓名 / 会社名', lbl_postal: '郵便番号 〒', lbl_tel: 'TEL', lbl_address: '住所',
+    up_logo: 'Logo（未上傳則不顯示）', up_company_seal: '公司印章（角印，預設 創喜商事）', lbl_company_seal_text: '公司印章文字（未上傳圖時顯示）',
+    up_personal_seal: '個人印章（印鑑，可選）', lbl_personal_seal_text: '個人印章文字（未上傳圖時顯示）',
+    lbl_recipient: '受取人', lbl_subject: '件名', lbl_date: '日期（西曆）', lbl_format: '格式',
+    era_reiwa: '令和', era_western: '西曆', auto_no: '自動請求書番号（YYYYMMDD-1）', lbl_inv_no: '請求書番号',
+    th_item: '品目', th_qty: '數量', th_unit: '単位', th_price: '単価', th_amt: '金額',
+    btn_add_item: '＋ 明細行を追加', btn_toggle_bank: '切換第二組帳戶',
+    lbl_tax_rate: '稅率 %', tax_enabled: '課稅（加總消費稅）', footer_chk: '顯示底部小字（Free Invoice Generator）',
+    sum_subtotal: '小計', sum_tax: '消費税', sum_total: '合計',
+    draft_hint: '草稿存於瀏覽器本地（localStorage）。若在此預覽窗內無法存取，將自動改用記憶體暫存（關閉即消失）。建議下載 HTML 檔後用瀏覽器開啟以取得完整草稿功能。',
+    draft_empty: '（尚無草稿）',
+    del_icon_title: '刪除',
+    flash_saved: '草稿已儲存', flash_nodup: '尚無草稿可複製', flash_dup: '已複製上一次請求書', flash_loaded: '已載入草稿',
+    confirm_reset: '確定重設為樣本預設值？',
+    alert_pdf: 'PDF 生成套件未載入（可能離線）。已改用列印：請在列印對話框選擇「另存為 PDF」。',
+    bank_enabled: '帳戶 {0} 啟用', bank_name: '銀行名', bank_code: '金融機関コード',
+    branch_name: '支店名', branch_code: '支店コード', account_type: '種別', account_no: '口座番号', account_holder: '口座名義',
+    doc_title: '請求書', doc_inv_no: '請求書番号', party_note: '下記のとおりご請求申し上げます。', amount_lbl: 'ご請求金額', bank_title: '振込先'
+  },
+  ja: {
+    page_title: 'Free Invoice Generator | 請求書作成ツール',
+    toolbar_help: '使い方', toolbar_pdf: 'PDFダウンロード', toolbar_print: '印刷', back_home: '← ホームに戻る',
+    toolbar_save: '下書き保存', toolbar_dup: '前回を複製', toolbar_reset: 'リセット',
+    help_title: '使い方',
+    help_li1_b: '発行者情報を入力', help_li1: '氏名／会社名、郵便番号、住所、TELを入力。',
+    help_li2_b: '印鑑を設定', help_li2: '「会社印（角印）」と「個人印鑑」をアップロードまたは入力。ロゴも可。',
+    help_li3_b: '請求内容を入力', help_li3: '宛名、件名、日付、形式（元号／西暦）を設定。請求書番号は自動生成可。',
+    help_li4_b: '明細を追加', help_li4: '「＋ 明細行を追加」で品目・数量・単位・単価を入力。金額は自動計算。',
+    help_li5_b: '消費税と振込先', help_li5: '消費税率と課税のスイッチを設定。口座情報を入力（2つ目も可）。',
+    help_li6_b: '保存と出力', help_li6: '下書きは端末内に自動保存。「PDFダウンロード」または「印刷」で正式な請求書を取得。',
+    help_tip_b: 'プライバシー：', help_tip: 'すべてのデータはお使いのブラウザ内（localStorage）のみに保存。サーバーへは送信しません。',
+    sec_issuer: '発行者情報（右側）', sec_content: '請求内容', sec_items: '明細', sec_tax: '消費税', sec_bank: '振込先', sec_other: 'その他', sec_draft: '下書き（自動保存、最新10件）',
+    lbl_name: '氏名 / 会社名', lbl_postal: '郵便番号 〒', lbl_tel: 'TEL', lbl_address: '住所',
+    up_logo: 'ロゴ（未設定時は表示しません）', up_company_seal: '会社印（角印、初期値 創喜商事）', lbl_company_seal_text: '会社印の文字（画像未設定時）',
+    up_personal_seal: '個人印鑑（任意）', lbl_personal_seal_text: '個人印鑑の文字（画像未設定時）',
+    lbl_recipient: '宛名', lbl_subject: '件名', lbl_date: '日付（西暦）', lbl_format: '形式',
+    era_reiwa: '令和', era_western: '西暦', auto_no: '請求書番号自動生成（YYYYMMDD-1）', lbl_inv_no: '請求書番号',
+    th_item: '品目', th_qty: '数量', th_unit: '単位', th_price: '単価', th_amt: '金額',
+    btn_add_item: '＋ 明細行を追加', btn_toggle_bank: '2つ目の口座を切替',
+    lbl_tax_rate: '税率 %', tax_enabled: '課税（消費税を加算）', footer_chk: 'フッターメモを表示（Free Invoice Generator）',
+    sum_subtotal: '小計', sum_tax: '消費税', sum_total: '合計',
+    draft_hint: '下書きはブラウザ内（localStorage）に保存。このプレビュー枠で保存できない場合はメモリ保存に切替（閉じると消えます）。HTMLを保存してブラウザで開くと全機能利用可。',
+    draft_empty: '（下書きなし）',
+    del_icon_title: '削除',
+    flash_saved: '下書きを保存しました', flash_nodup: '複製する下書きがありません', flash_dup: '前回の請求書を複製しました', flash_loaded: '下書きを読み込みました',
+    confirm_reset: 'サンプルの初期値に戻しますか？',
+    alert_pdf: 'PDFライブラリが読み込めません（オフライン等）。印刷に切り替えます：「PDFとして保存」を選択してください。',
+    bank_enabled: '口座 {0} を有効化', bank_name: '銀行名', bank_code: '金融機関コード',
+    branch_name: '支店名', branch_code: '支店コード', account_type: '種別', account_no: '口座番号', account_holder: '口座名義',
+    doc_title: '請求書', doc_inv_no: '請求書番号', party_note: '下記のとおりご請求申し上げます。', amount_lbl: 'ご請求金額', bank_title: '振込先'
+  }
+};
+let LANG = 'zh';
+try { const s = localStorage.getItem('fig_lang'); if (s === 'ja' || s === 'zh') LANG = s; } catch (e) {}
+function t(key, a) {
+  const d = I18N[LANG];
+  let s = (d && d[key] != null) ? d[key] : (I18N.zh[key] != null ? I18N.zh[key] : key);
+  if (a !== undefined) s = s.replace('{0}', a);
+  return s;
+}
+function applyLang() {
+  if (typeof renderItems === 'function') { renderItems(); renderBanks(); renderPreview(); renderDrafts(); }
+  document.documentElement.lang = (LANG === 'ja') ? 'ja' : 'zh-Hant';
+  document.title = t('page_title');
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.getAttribute('data-i18n')); });
+  const cur = document.getElementById('langCurrent'); if (cur) cur.textContent = (LANG === 'ja') ? '日本語' : '中文';
+  const menu = document.querySelectorAll('#langMenu button');
+  menu.forEach(b => b.classList.toggle('active', b.dataset.lang === LANG));
+}
+function setLang(lang) {
+  if (lang !== 'zh' && lang !== 'ja') return;
+  LANG = lang;
+  try { localStorage.setItem('fig_lang', lang); } catch (e) {}
+  applyLang();
+  const ls = document.getElementById('langSwitch'); if (ls) ls.classList.remove('open');
+}
+function toggleLangMenu(e) {
+  e.stopPropagation();
+  const ls = document.getElementById('langSwitch');
+  if (ls) ls.classList.toggle('open');
+}
+document.addEventListener('click', function (e) {
+  const ls = document.getElementById('langSwitch');
+  if (ls && !ls.contains(e.target)) ls.classList.remove('open');
+});
+
+/* ---------- 1. 常數與預設 ---------- */
+const STORAGE_KEY = 'seikyusho_drafts_v1';
+const UNITS = ['人工', '式', '個', '時間', '日', '台', '本', '回'];
+const ACCOUNT_TYPES = ['普通', '当座', '貯蓄'];
+const ERA_BASE_YEAR = 2018; // 令和元年 = 2019（eraYear = y - 2018）
+
+/**
+ * 上傳目標表：把「logo / 公司印章 / 個人印章」統一抽象成一筆設定，
+ * 新增/調整印章種類只需改這個表，不用動 render / bind / clear。
+ */
+const UPLOAD_TARGETS = {
+  logo: {
+    fileId: 'logo-file',
+    previewId: 'logo-preview',
+    get: s => s.issuer.logoUrl,
+    set: (s, v) => { s.issuer.logoUrl = v; },
+    clear: s => { s.issuer.logoUrl = ''; }
+  },
+  companySeal: {
+    fileId: 'company-seal-file',
+    previewId: 'company-seal-preview',
+    get: s => s.issuer.companySeal.url,
+    set: (s, v) => { s.issuer.companySeal.url = v; },
+    clear: s => { s.issuer.companySeal.url = ''; }
+  },
+  personalSeal: {
+    fileId: 'personal-seal-file',
+    previewId: 'personal-seal-preview',
+    get: s => s.issuer.personalSeal.url,
+    set: (s, v) => { s.issuer.personalSeal.url = v; },
+    clear: s => { s.issuer.personalSeal.url = ''; }
+  }
+};
+
+/* ---------- 隨機種子資料（不使用任何真實個資，每次載入重新生成） ---------- */
+const DEFAULT_COMPANY_SEAL_TEXT = 'サンプル商事';
+const SAMPLE_NAMES = ['山田 太郎', '佐藤 花子', '鈴木 一郎', '田中 美咲', '高橋 健太', '伊藤 直樹', '渡辺 裕子', '中村 大輔'];
+const SAMPLE_COMPANIES = ['サンプル商事', 'テスト株式会社', '株式会社モック', '架空興業', '株式会社デモ'];
+const SAMPLE_PREFECTURES = ['東京都', '神奈川県', '大阪府', '愛知県', '福岡県', '北海道', '埼玉県', '千葉県'];
+const SAMPLE_CITIES = ['中央区', '港区', '西区', '北区', '南区', '練馬区', '足立区', '豊島区'];
+const SAMPLE_ITEM_NAMES = ['作業員', '現場作業', '夜勤', '交通費', '資材代', '機材レンタル', '清掃作業', '雑工事'];
+const SAMPLE_RECIPIENTS = ['（株）サンプル 御中', '（有）テスト 御中', '株式会社モック 御中', '架空商事 御中'];
+const SAMPLE_SUBJECTS = ['請求書（現場作業）', '請求書（工事代金）', '毎月の請求書', '作業報酬のご請求'];
+const SAMPLE_BANK_NAMES = ['みずほ銀行', '三井住友銀行', '三菱UFJ銀行', 'ゆうちょ銀行', 'PayPay銀行'];
+
+function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+/** 生成隨機且全為虛構的種子資料（不含任何真實個人 / 公司資訊）。每次載入都重新生成。 */
+function createDefaultState() {
+  const y = randInt(2022, 2024);
+  const m = randInt(1, 12);
+  const d = randInt(1, 28);
+  const name = pick(SAMPLE_NAMES);
+  const company = pick(SAMPLE_COMPANIES);
+  const postal = String(randInt(100, 999)) + '-' + String(randInt(1000, 9999));
+  const tel = '0' + randInt(90, 99) + String(randInt(10000000, 99999999));
+  const address = pick(SAMPLE_PREFECTURES) + pick(SAMPLE_CITIES) + ' ' + randInt(1, 30) + '-' + randInt(1, 30);
+  const dateStr = y + '-' + pad2(m) + '-' + pad2(d);
+  const invoiceNumber = '' + y + pad2(m) + pad2(d) + '-1';
+
+  const items = Array.from({ length: randInt(3, 6) }, () => ({
+    name: pick(SAMPLE_ITEM_NAMES),
+    quantity: randInt(1, 20),
+    unit: pick(UNITS),
+    unitPrice: randInt(5, 50) * 1000
+  }));
+
+  function randomBank() {
+    return {
+      enabled: true,
+      bankName: pick(SAMPLE_BANK_NAMES),
+      bankCode: String(randInt(1000, 9999)),
+      branchName: pick(SAMPLE_CITIES) + '支店',
+      branchCode: String(randInt(100, 999)),
+      accountType: pick(ACCOUNT_TYPES),
+      accountNumber: String(randInt(1000000, 9999999)),
+      accountHolder: name.replace(/\s+/g, '')
+    };
+  }
+
+  return {
+    date: dateStr,
+    eraMode: true,
+    invoiceNumber: invoiceNumber,
+    autoNumber: true,
+    recipient: pick(SAMPLE_RECIPIENTS),
+    subject: pick(SAMPLE_SUBJECTS),
+    issuer: {
+      name: name,
+      postal: postal,
+      address: address,
+      tel: tel,
+      logoUrl: '',
+      companySeal: { url: '', text: company },
+      personalSeal: { url: '', text: '' }
+    },
+    items: items,
+    taxRate: 10,
+    taxEnabled: false,
+    banks: [randomBank(), randomBank()],
+    showFooter: true
+  };
+}
+
+/* ---------- 2. 工具與儲存層 ---------- */
+const storage = (function () {
+  try {
+    const t = '__test__';
+    window.localStorage.setItem(t, t);
+    window.localStorage.removeItem(t);
+    return window.localStorage;
+  } catch (e) {
+    const mem = {};
+    return {
+      getItem: k => (k in mem ? mem[k] : null),
+      setItem: (k, v) => { mem[k] = String(v); },
+      removeItem: k => { delete mem[k]; }
+    };
+  }
+})();
+
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const num = v => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+const fmt = n => num(n).toLocaleString('ja-JP');
+const yen = n => '¥' + fmt(n);
+const pad2 = n => String(n).padStart(2, '0');
+const clone = o => JSON.parse(JSON.stringify(o));
+
+function flash(msg) {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1e3a5f;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:99;box-shadow:0 4px 16px rgba(0,0,0,.25)';
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 1600);
+}
+
+/* ---------- 3. 狀態（含 migration） ---------- */
+let state = createDefaultState();
+
+// 舊版 stampUrl/stampText → 新版 companySeal 遷移
+function migrateState(s) {
+  if (!s || !s.issuer) return s;
+  const iss = s.issuer;
+  if (iss.stampUrl !== undefined || iss.stampText !== undefined) {
+    iss.companySeal = {
+      url: iss.stampUrl || '',
+      text: iss.stampText || DEFAULT_COMPANY_SEAL_TEXT
+    };
+    delete iss.stampUrl;
+    delete iss.stampText;
+  }
+  iss.companySeal = iss.companySeal || { url: '', text: DEFAULT_COMPANY_SEAL_TEXT };
+  iss.personalSeal = iss.personalSeal || { url: '', text: '' };
+  return s;
+}
+
+/* ---------- 4. 業務邏輯 ---------- */
+function calculate() {
+  const subtotal = state.items.reduce((s, it) => s + num(it.quantity) * num(it.unitPrice), 0);
+  const taxRate = num(state.taxRate);
+  const taxAmount = state.taxEnabled ? Math.floor(subtotal * taxRate / 100) : 0;
+  const total = subtotal + taxAmount;
+  return { subtotal, taxAmount, total, taxRate };
+}
+
+function toEraDate(dateStr) {
+  if (!dateStr) return '';
+  const [y, m, d] = dateStr.split('-').map(Number);
+  if (!y) return '';
+  const eraYear = y - ERA_BASE_YEAR;
+  if (eraYear < 1) return toWesternDate(dateStr);
+  return '令和' + pad2(eraYear) + '年' + pad2(m) + '月' + pad2(d) + '日';
+}
+function toWesternDate(dateStr) {
+  if (!dateStr) return '';
+  const [y, m, d] = dateStr.split('-').map(Number);
+  if (!y) return '';
+  return y + '年' + pad2(m) + '月' + pad2(d) + '日';
+}
+function autoInvoiceNumber(dateStr) {
+  if (!dateStr) return '';
+  const [y, m, d] = dateStr.split('-');
+  return y + m + d + '-1';
+}
+
+/* ---------- 5. 預覽渲染（組合式） ---------- */
+function renderLogo() {
+  const url = state.issuer.logoUrl;
+  return url ? '<img src="' + esc(url) + '" alt="logo">' : '';
+}
+
+/** 公司印章（角印）：上傳圖優先，否則用文字生成紅色方印 */
+function renderCompanySeal() {
+  const s = state.issuer.companySeal;
+  if (!s.url && !s.text) return '';
+  const inner = s.url
+    ? '<img src="' + esc(s.url) + '" alt="会社印">'
+    : '<span class="seal-text">' + esc(s.text) + '</span>';
+  const cls = 'seal company' + (s.url ? ' has-image' : '');
+  return '<div class="' + cls + '" title="会社印">' + inner + '</div>';
+}
+
+/** 個人印章（印鑑）：姓名旁的斜置小印 */
+function renderPersonalSeal() {
+  const s = state.issuer.personalSeal;
+  if (!s.url && !s.text) return '';
+  const inner = s.url
+    ? '<img src="' + esc(s.url) + '" alt="印">'
+    : '<span>' + esc(s.text) + '</span>';
+  return '<span class="seal personal">' + inner + '</span>';
+}
+
+function renderHeader() {
+  const dateStr = state.eraMode ? toEraDate(state.date) : toWesternDate(state.date);
+  return '' +
+    '<div class="top-right">' +
+      '<div class="date">' + esc(dateStr) + '</div>' +
+      '<div class="inv-no">' + t('doc_inv_no') + ' ' + esc(state.invoiceNumber || '') + '</div>' +
+    '</div>' +
+    '<div class="doc-title">' + t('doc_title') + '</div>';
+}
+
+function renderIssuerBlock() {
+  const iss = state.issuer;
+  const logoInner = renderLogo();
+  const logoHtml = logoInner ? '<div class="issuer-logo has-image">' + logoInner + '</div>' : '';
+  return '' +
+    '<div class="party-right">' +
+      '<div class="issuer-col">' +
+        logoHtml +
+        '<div class="issuer-name-row">' +
+          '<span class="issuer-name">' + esc(iss.name || '') + '</span>' +
+          renderPersonalSeal() +
+        '</div>' +
+        '<div class="issuer-detail">〒' + esc(iss.postal || '') + '</div>' +
+        '<div class="issuer-detail">' + esc(iss.address || '') + '</div>' +
+        '<div class="issuer-detail">TEL. ' + esc(iss.tel || '') + '</div>' +
+      '</div>' +
+      '<div class="company-seal-slot">' + renderCompanySeal() + '</div>' +
+    '</div>';
+}
+
+function renderPartyLeft() {
+  return '' +
+    '<div class="party-left">' +
+      '<div class="recipient">' + esc(state.recipient || '') + '</div>' +
+      '<div class="subject">' + esc(state.subject || '') + '</div>' +
+      '<div class="fixed-note">' + t('party_note') + '</div>' +
+    '</div>';
+}
+
+function renderAmountBar(total) {
+  return '' +
+    '<div class="amount-bar">' +
+      '<span class="lbl">' + t('amount_lbl') + '</span>' +
+      '<span class="val">' + yen(total) + '</span>' +
+    '</div>';
+}
+
+function renderItemsRows() {
+  return state.items.map(it => {
+    const amt = num(it.quantity) * num(it.unitPrice);
+    return '<tr>' +
+      '<td class="desc">' + esc(it.name || '') + '</td>' +
+      '<td class="num">' + fmt(it.quantity) + esc(it.unit || '') + '</td>' +
+      '<td class="num">' + fmt(it.unitPrice) + '</td>' +
+      '<td class="num">' + fmt(amt) + '</td>' +
+      '</tr>';
+  }).join('');
+}
+
+function renderItemsTable() {
+  return '' +
+    '<table class="items">' +
+      '<thead><tr><th>' + t('th_item') + '</th><th>' + t('th_qty') + '</th><th>' + t('th_price') + '</th><th>' + t('th_amt') + '</th></tr></thead>' +
+      '<tbody>' + renderItemsRows() + '</tbody>' +
+    '</table>';
+}
+
+function renderTotalsBlock(c) {
+  return '' +
+    '<div class="totals"><div class="tbl">' +
+      '<div class="trow"><span>' + t('sum_subtotal') + '</span><span>' + fmt(c.subtotal) + '</span></div>' +
+      '<div class="trow"><span>' + t('sum_tax') + ' (' + c.taxRate + '%)</span><span>' + fmt(c.taxAmount) + '</span></div>' +
+      '<div class="trow total"><span>' + t('sum_total') + '</span><span>' + fmt(c.total) + '</span></div>' +
+    '</div></div>';
+}
+
+function renderBankSection() {
+  const active = state.banks.filter(b => b.enabled);
+  const cols = active.map(b =>
+    '<div class="bank-box">' +
+      '<div class="bname">' + esc(b.bankName || '') + '</div>' +
+      '<div>' + esc(b.branchName || '') + '（' + esc(b.branchCode || '') + '）</div>' +
+      '<div>' + esc(b.accountType || '普通') + ' ' + esc(b.accountNumber || '') + '</div>' +
+      '<div>' + esc(b.accountHolder || '') + '</div>' +
+    '</div>'
+  ).join('');
+  return '' +
+    '<div class="bank-section">' +
+      '<div class="bank-title">' + t('bank_title') + '</div>' +
+      '<div class="banks' + (active.length === 1 ? ' one' : '') + '">' + cols + '</div>' +
+    '</div>';
+}
+
+function renderFooter() {
+  return state.showFooter ? '<div class="footer-note">Free Invoice Generator</div>' : '';
+}
+
+function updateSummary(c) {
+  $('#sum-subtotal').textContent = yen(c.subtotal);
+  $('#sum-tax').textContent = yen(c.taxAmount);
+  $('#sum-tax-label').textContent = t('sum_tax') + ' (' + c.taxRate + '%)';
+  $('#sum-total').textContent = yen(c.total);
+}
+
+/* 行動端適配：當容器寬度小於 A4 自然寬（794px）時，將發票切換為「is-mobile」回流模式
+   （寬度 100%、欄位堆疊、字級縮減），避免縮放造成的逐字換行不可讀；桌面寬度足夠時恢復 A4 排版。 */
+function fitInvoice() {
+  const page = document.getElementById('invoicePage');
+  const col = document.getElementById('printArea');
+  if (!page || !col) return;
+  page.style.transform = '';
+  const cs = getComputedStyle(col);
+  const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+  const avail = col.clientWidth - padX;
+  const natural = 794;
+  if (avail > 0 && avail < natural) {
+    page.classList.add('is-mobile');
+  } else {
+    page.classList.remove('is-mobile');
+  }
+  col.style.height = '';
+  col.style.overflow = '';
+}
+
+let _fitRAF = null;
+window.addEventListener('resize', function () {
+  if (_fitRAF) cancelAnimationFrame(_fitRAF);
+  _fitRAF = requestAnimationFrame(fitInvoice);
+});
+
+function renderPreview() {
+  const c = calculate();
+  $('#invoicePage').innerHTML =
+    renderHeader() +
+    '<div class="party-row">' +
+      renderPartyLeft() +
+      renderIssuerBlock() +
+    '</div>' +
+    renderAmountBar(c.total) +
+    renderItemsTable() +
+    renderTotalsBlock(c) +
+    renderBankSection() +
+    renderFooter();
+
+  updateSummary(c);
+  fitInvoice();
+}
+
+/* ---------- 6. 表單渲染 ---------- */
+function renderItems() {
+  const body = $('#items-body');
+  body.innerHTML = state.items.map((it, i) =>
+    '<tr data-i="' + i + '">' +
+      '<td><input data-f="name" value="' + esc(it.name) + '" placeholder="' + t('th_item') + '"></td>' +
+      '<td><input type="number" data-f="quantity" min="0" step="1" value="' + esc(it.quantity) + '"></td>' +
+      '<td><select data-f="unit">' +
+        UNITS.map(u => '<option' + (u === it.unit ? ' selected' : '') + '>' + u + '</option>').join('') +
+      '</select></td>' +
+      '<td><input type="number" data-f="unitPrice" min="0" step="1" value="' + esc(it.unitPrice) + '"></td>' +
+      '<td class="amt">' + fmt(num(it.quantity) * num(it.unitPrice)) + '</td>' +
+      '<td><button class="icon-btn" data-del="1" title="' + t('del_icon_title') + '">✕</button></td>' +
+    '</tr>'
+  ).join('');
+}
+
+function renderBanks() {
+  $('#bank-forms').innerHTML = state.banks.map((b, i) =>
+    '<div class="field bank-box-form" style="border:1px solid #e2e6ea;border-radius:9px;padding:10px;margin-bottom:10px;' + (b.enabled ? '' : 'opacity:.45') + '">' +
+      '<div class="check"><input type="checkbox" data-bank="enabled" ' + (b.enabled ? 'checked' : '') + '> <label>' + t('bank_enabled', i + 1) + '</label></div>' +
+      '<div class="row2">' +
+        '<div class="field"><label data-i18n="bank_name">' + esc(b.bankName) + '</label><input data-bank="bankName" value="' + esc(b.bankName) + '"></div>' +
+        '<div class="field"><label data-i18n="bank_code">' + esc(b.bankCode) + '</label><input data-bank="bankCode" value="' + esc(b.bankCode) + '"></div>' +
+      '</div>' +
+      '<div class="row2">' +
+        '<div class="field"><label data-i18n="branch_name">' + esc(b.branchName) + '</label><input data-bank="branchName" value="' + esc(b.branchName) + '"></div>' +
+        '<div class="field"><label data-i18n="branch_code">' + esc(b.branchCode) + '</label><input data-bank="branchCode" value="' + esc(b.branchCode) + '"></div>' +
+      '</div>' +
+      '<div class="row2">' +
+        '<div class="field"><label data-i18n="account_type">' + esc(b.accountType) + '</label><select data-bank="accountType">' +
+          ACCOUNT_TYPES.map(ty => '<option' + (ty === b.accountType ? ' selected' : '') + '>' + ty + '</option>').join('') +
+        '</select></div>' +
+        '<div class="field"><label data-i18n="account_no">' + esc(b.accountNumber) + '</label><input data-bank="accountNumber" value="' + esc(b.accountNumber) + '"></div>' +
+      '</div>' +
+      '<div class="field"><label data-i18n="account_holder">' + esc(b.accountHolder) + '</label><input data-bank="accountHolder" value="' + esc(b.accountHolder) + '"></div>' +
+    '</div>'
+  ).join('');
+}
+
+function setEraSeg(mode) {
+  const btns = $('#era-seg').querySelectorAll('button');
+  btns.forEach(b => b.classList.toggle('on', Number(b.dataset.era) === mode));
+}
+
+/** 同步單一上傳目標的縮圖（讀取 UPLOAD_TARGETS，避免重複） */
+function syncUploadPreview(kind) {
+  const t = UPLOAD_TARGETS[kind];
+  if (!t) return;
+  const url = t.get(state);
+  const img = $('#' + t.previewId);
+  if (url) { img.src = url; img.style.display = 'block'; }
+  else { img.style.display = 'none'; }
+}
+
+function syncFormFromState() {
+  $('#issuer-name').value = state.issuer.name;
+  $('#issuer-postal').value = state.issuer.postal;
+  $('#issuer-tel').value = state.issuer.tel;
+  $('#issuer-address').value = state.issuer.address;
+  $('#company-seal-text').value = state.issuer.companySeal.text;
+  $('#personal-seal-text').value = state.issuer.personalSeal.text;
+  $('#recipient').value = state.recipient;
+  $('#subject').value = state.subject;
+  $('#date').value = state.date;
+  $('#invoice-number').value = state.invoiceNumber;
+  $('#auto-number').checked = state.autoNumber;
+  $('#invoice-number').readOnly = state.autoNumber;
+  $('#tax-rate').value = state.taxRate;
+  $('#tax-enabled').checked = state.taxEnabled;
+  $('#show-footer').checked = state.showFooter;
+  setEraSeg(state.eraMode ? 1 : 0);
+  syncUploadPreview('logo');
+  syncUploadPreview('companySeal');
+  syncUploadPreview('personalSeal');
+}
+
+/* ---------- 7. 表單綁定 ---------- */
+function bindText(id, fn) {
+  const el = $('#' + id);
+  el.addEventListener('input', () => { fn(el.value); renderPreview(); scheduleSave(); });
+}
+
+function readImage(file, cb) {
+  if (!file) return;
+  const r = new FileReader();
+  r.onload = e => cb(e.target.result);
+  r.readAsDataURL(file);
+}
+
+/** 通用：綁定一個 UPLOAD_TARGETS 種類的檔案上傳 */
+function bindUpload(kind) {
+  const t = UPLOAD_TARGETS[kind];
+  if (!t) return;
+  $('#' + t.fileId).addEventListener('change', e => {
+    readImage(e.target.files[0], data => {
+      t.set(state, data);
+      syncUploadPreview(kind);
+      renderPreview();
+      scheduleSave();
+    });
+  });
+}
+
+/** 通用：清除一個 UPLOAD_TARGETS 種類的上傳 */
+function clearUpload(kind) {
+  const t = UPLOAD_TARGETS[kind];
+  if (!t) return;
+  t.clear(state);
+  syncUploadPreview(kind);
+  $('#' + t.fileId).value = '';
+  renderPreview();
+  scheduleSave();
+}
+
+function bindForm() {
+  // 文字欄位
+  bindText('issuer-name',        v => state.issuer.name = v);
+  bindText('issuer-postal',      v => state.issuer.postal = v);
+  bindText('issuer-tel',         v => state.issuer.tel = v);
+  bindText('issuer-address',     v => state.issuer.address = v);
+  bindText('company-seal-text',  v => state.issuer.companySeal.text = v);
+  bindText('personal-seal-text', v => state.issuer.personalSeal.text = v);
+  bindText('recipient',          v => state.recipient = v);
+  bindText('subject',            v => state.subject = v);
+  bindText('invoice-number',     v => { if (!state.autoNumber) state.invoiceNumber = v; });
+  bindText('tax-rate',           v => state.taxRate = num(v));
+
+  $('#tax-enabled').addEventListener('change', e => { state.taxEnabled = e.target.checked; renderPreview(); scheduleSave(); });
+  $('#show-footer').addEventListener('change', e => { state.showFooter = e.target.checked; renderPreview(); scheduleSave(); });
+
+  $('#date').addEventListener('input', e => {
+    state.date = e.target.value;
+    if (state.autoNumber) { state.invoiceNumber = autoInvoiceNumber(state.date); $('#invoice-number').value = state.invoiceNumber; }
+    renderPreview(); scheduleSave();
+  });
+  $('#auto-number').addEventListener('change', e => {
+    state.autoNumber = e.target.checked;
+    if (state.autoNumber) { state.invoiceNumber = autoInvoiceNumber(state.date); }
+    $('#invoice-number').readOnly = state.autoNumber;
+    $('#invoice-number').value = state.invoiceNumber;
+    renderPreview(); scheduleSave();
+  });
+
+  $('#era-seg').addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    state.eraMode = Number(b.dataset.era) === 1;
+    setEraSeg(state.eraMode ? 1 : 0);
+    renderPreview(); scheduleSave();
+  });
+
+  // 上傳（logo / 公司印章 / 個人印章）
+  bindUpload('logo');
+  bindUpload('companySeal');
+  bindUpload('personalSeal');
+
+  // 明細（事件委派）
+  $('#items-body').addEventListener('input', e => {
+    const tr = e.target.closest('tr'); if (!tr) return;
+    const i = Number(tr.dataset.i);
+    const f = e.target.dataset.f;
+    if (f === 'quantity') state.items[i].quantity = num(e.target.value);
+    else if (f === 'unitPrice') state.items[i].unitPrice = num(e.target.value);
+    else if (f === 'name') state.items[i].name = e.target.value;
+    else if (f === 'unit') state.items[i].unit = e.target.value;
+    tr.querySelector('.amt').textContent = fmt(num(state.items[i].quantity) * num(state.items[i].unitPrice));
+    renderPreview(); scheduleSave();
+  });
+  $('#items-body').addEventListener('click', e => {
+    const del = e.target.closest('[data-del]');
+    if (!del) return;
+    deleteItem(Number(del.closest('tr').dataset.i));
+  });
+
+  // 銀行
+  $('#bank-forms').addEventListener('input', e => {
+    const box = e.target.closest('.bank-box-form'); if (!box) return;
+    const idx = Array.prototype.indexOf.call($('#bank-forms').children, box);
+    const key = e.target.dataset.bank;
+    if (!key || idx < 0) return;
+    if (key === 'enabled') {
+      state.banks[idx].enabled = e.target.checked;
+      box.style.opacity = e.target.checked ? '' : '.45';
+    } else {
+      state.banks[idx][key] = e.target.value;
+    }
+    renderPreview(); scheduleSave();
+  });
+  $('#bank-forms').addEventListener('change', e => {
+    const box = e.target.closest('.bank-box-form'); if (!box) return;
+    const idx = Array.prototype.indexOf.call($('#bank-forms').children, box);
+    const key = e.target.dataset.bank;
+    if (!key || idx < 0 || key === 'enabled') return;
+    state.banks[idx][key] = e.target.value;
+    renderPreview(); scheduleSave();
+  });
+}
+
+function addItem() {
+  state.items.push({ name: '', quantity: 1, unit: '人工', unitPrice: 0 });
+  renderItems(); renderPreview(); scheduleSave();
+}
+function deleteItem(i) {
+  state.items.splice(i, 1);
+  renderItems(); renderPreview(); scheduleSave();
+}
+function toggleBank2() {
+  if (state.banks.length === 1) {
+    state.banks.push({ enabled: true, bankName: '', bankCode: '', branchName: '', branchCode: '', accountType: '普通', accountNumber: '', accountHolder: '' });
+  } else {
+    state.banks.pop();
+  }
+  renderBanks(); renderPreview(); scheduleSave();
+}
+
+/* ---------- 8. 草稿 ---------- */
+function loadDrafts() {
+  try { return JSON.parse(storage.getItem(STORAGE_KEY) || '[]'); }
+  catch (e) { return []; }
+}
+function persistDrafts(d) { storage.setItem(STORAGE_KEY, JSON.stringify(d)); }
+
+let saveTimer = null;
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => saveDraft(false), 600);
+}
+function saveDraft(manual) {
+  const drafts = loadDrafts();
+  drafts.unshift({ id: Date.now(), savedAt: new Date().toLocaleString('ja-JP'), data: clone(state) });
+  if (drafts.length > 10) drafts.length = 10;
+  persistDrafts(drafts);
+  renderDrafts();
+  if (manual) flash(t('flash_saved'));
+}
+function saveDraftNow() { saveDraft(true); }
+
+function duplicateLast() {
+  const drafts = loadDrafts();
+  const src = drafts.length ? drafts[0].data : null;
+  if (!src) { flash(t('flash_nodup')); return; }
+  state = migrateState(clone(src));
+  state.invoiceNumber = src.invoiceNumber || '';
+  syncFormFromState();
+  renderItems(); renderBanks(); renderPreview();
+  flash(t('flash_dup'));
+}
+function loadDraft(id) {
+  const drafts = loadDrafts();
+  const d = drafts.find(x => String(x.id) === String(id));
+  if (!d) return;
+  state = migrateState(clone(d.data));
+  syncFormFromState();
+  renderItems(); renderBanks(); renderPreview();
+  flash(t('flash_loaded'));
+}
+function deleteDraft(id) {
+  persistDrafts(loadDrafts().filter(x => String(x.id) !== String(id)));
+  renderDrafts();
+}
+function renderDrafts() {
+  const drafts = loadDrafts();
+  const box = $('#draft-list');
+  if (!drafts.length) { box.innerHTML = '<div class="hint">' + t('draft_empty') + '</div>'; return; }
+  box.innerHTML = drafts.map(d => {
+    const total = (d.data.items || []).reduce((s, it) => s + num(it.quantity) * num(it.unitPrice), 0);
+    return '<div class="draft-item">' +
+      '<div class="meta"><b>' + esc(d.data.recipient || '') + ' — ' + yen(total) + '</b>' +
+      '<span>' + esc(d.data.invoiceNumber || '') + ' · ' + esc(d.savedAt || '') + '</span></div>' +
+      '<button onclick="loadDraft(' + d.id + ')">載入</button>' +
+      '<button onclick="deleteDraft(' + d.id + ')">刪除</button>' +
+    '</div>';
+  }).join('');
+}
+
+/* ---------- 9. PDF / 列印 ---------- */
+function downloadPDF() {
+  const el = $('#invoicePage');
+  if (window.html2canvas && window.jspdf) {
+    el.classList.remove('paper-shadow');
+    html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false }).then(canvas => {
+      el.classList.add('paper-shadow');
+      const imgData = canvas.toDataURL('image/png');
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageW = 210;
+      const imgH = canvas.height * pageW / canvas.width;
+      pdf.addImage(imgData, 'PNG', 0, 0, pageW, imgH);
+      pdf.save('seikyusho_' + (state.invoiceNumber || 'invoice') + '.pdf');
+    }).catch(() => { el.classList.add('paper-shadow'); fallbackPrint(); });
+  } else {
+    fallbackPrint();
+  }
+}
+function fallbackPrint() {
+  alert(t('alert_pdf'));
+  window.print();
+}
+
+/* ---------- 9.5 使用說明彈窗 ---------- */
+function openHelp() {
+  const m = document.getElementById('helpModal');
+  if (m) m.classList.add('open');
+}
+function closeHelp() {
+  const m = document.getElementById('helpModal');
+  if (m) m.classList.remove('open');
+}
+// Esc 鍵關閉彈窗
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeHelp(); });
+
+/* ---------- 10. 啟動 ---------- */
+function resetAll() {
+  if (!confirm(t('confirm_reset'))) return;
+  location.reload();
+}
+
+function init() {
+  syncFormFromState();
+  renderItems();
+  renderBanks();
+  renderPreview();
+  renderDrafts();
+  bindForm();
+  applyLang();
+}
+init();
+</script>
+</body>
+</html>
