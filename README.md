@@ -4,6 +4,8 @@
 
 > 品牌標誌：金線鳥居（torii）+ `Free Invoice / GENERATOR`。
 
+> 📋 專案維護與交接說明（變更記錄、部署、環境注意事項）見 [HANDOFF.md](./HANDOFF.md)。
+
 ---
 
 ## ✨ 功能特色
