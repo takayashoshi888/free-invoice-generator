@@ -45,6 +45,18 @@
   .btn.primary:hover { background: #16304f; }
   .btn.danger { color: #a33; }
 
+  /* 印章產生器入口（外部工具，金色點綴以提升辨識度） */
+  .btn.sealgen { border-color: #e2b04a; color: #8a6a1f; background: #fffdf5; }
+  .btn.sealgen:hover { background: #fff6e0; border-color: #d4af37; }
+
+  /* 表單內：印章產生器的情境提示 */
+  .sealgen-hint {
+    margin: 10px 0 4px; font-size: 12px; line-height: 1.65; color: #6a788c;
+    background: #fffdf5; border: 1px dashed #e2b04a; border-radius: 8px; padding: 9px 11px;
+  }
+  .sealgen-hint a { color: #8a6a1f; font-weight: 700; text-decoration: underline; }
+  .sealgen-hint a:hover { color: #6d520f; }
+
   /* ---------- 語言切換（小地球） ---------- */
   .lang-switch { position: relative; }
   .lang-btn {
@@ -437,6 +449,7 @@
   <div class="toolbar no-print">
     <span class="brand"><svg class="logo-mark" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><defs><style>.gold-line{stroke:#D4AF37;fill:none;stroke-width:6;}.gold-fill{fill:#D4AF37;}.torii-line{stroke:#D4AF37;stroke-width:10;stroke-linecap:round;}.title-text{fill:#D4AF37;font-family:"Noto Serif JP","Times New Roman",serif;font-weight:700;}.sub-text{fill:#D4AF37;font-family:"Noto Sans JP","Helvetica",sans-serif;letter-spacing:4px;}</style></defs><rect x="40" y="40" width="432" height="432" class="gold-line"/><rect x="70" y="70" width="372" height="372" class="gold-line"/><path d="M140 130 Q256 90 372 130" class="torii-line" fill="none"/><line x1="160" y1="160" x2="352" y2="160" class="torii-line"/><line x1="190" y1="160" x2="190" y2="210" class="torii-line"/><line x1="322" y1="160" x2="322" y2="210" class="torii-line"/><text x="256" y="280" text-anchor="middle" font-size="40" class="title-text">Free Invoice</text><text x="256" y="325" text-anchor="middle" font-size="20" class="sub-text">GENERATOR</text><line x1="180" y1="350" x2="332" y2="350" class="gold-line"/><line x1="200" y1="370" x2="312" y2="370" class="gold-line"/><polygon points="256,360 266,370 256,380 246,370" class="gold-fill"/></svg> Free Invoice Generator</span>
     <a class="btn" href="index.html" data-i18n="back_home">← 返回主頁</a>
+    <a class="btn sealgen" href="https://sealkit.app/kaishain" target="_blank" rel="noopener noreferrer" data-i18n="toolbar_sealgen">🔏 印章產生器</a>
     <button class="btn" onclick="openHelp()" data-i18n="toolbar_help">使用說明</button>
     <button class="btn primary" onclick="downloadPDF()" data-i18n="toolbar_pdf">PDF 下載</button>
     <button class="btn" onclick="window.print()" data-i18n="toolbar_print">列印</button>
@@ -499,6 +512,12 @@
       <div class="field" style="margin-top:10px">
         <label data-i18n="lbl_personal_seal_text">個人印章文字（未上傳圖時顯示）</label>
         <input id="personal-seal-text" placeholder="印">
+      </div>
+
+      <!-- 印章產生器：沒有印章圖檔時可先線上製作再回來上傳 -->
+      <div class="sealgen-hint">
+        <span data-i18n="sealgen_hint">還沒有印章圖片？</span>
+        <a href="https://sealkit.app/kaishain" target="_blank" rel="noopener noreferrer" data-i18n="sealgen_hint_link">用線上印章產生器製作 →</a>
       </div>
 
       <h2 data-i18n="sec_content">請求內容</h2>
@@ -580,6 +599,8 @@ const I18N = {
     page_title: 'Free Invoice Generator | 免費請求書產生器',
     toolbar_help: '使用說明', toolbar_pdf: 'PDF 下載', toolbar_print: '列印', back_home: '← 返回主頁',
     toolbar_save: '儲存草稿', toolbar_dup: '複製上一次', toolbar_reset: '重設',
+    toolbar_sealgen: '🔏 印章產生器',
+    sealgen_hint: '還沒有印章圖片？', sealgen_hint_link: '用線上印章產生器製作 →',
     help_title: '使用說明',
     help_li1_b: '填寫發行人資訊', help_li1: '輸入姓名 / 会社名、郵便番号、住所、TEL。',
     help_li2_b: '設定印章', help_li2: '上傳或填寫「公司印章（角印）」與「個人印章（印鑑）」；亦可上傳 Logo。',
@@ -612,6 +633,8 @@ const I18N = {
     page_title: 'Free Invoice Generator | 請求書作成ツール',
     toolbar_help: '使い方', toolbar_pdf: 'PDFダウンロード', toolbar_print: '印刷', back_home: '← ホームに戻る',
     toolbar_save: '下書き保存', toolbar_dup: '前回を複製', toolbar_reset: 'リセット',
+    toolbar_sealgen: '🔏 印鑑ジェネレーター',
+    sealgen_hint: '印鑑画像がまだない場合は', sealgen_hint_link: 'オンライン印鑑ジェネレーターで作成 →',
     help_title: '使い方',
     help_li1_b: '発行者情報を入力', help_li1: '氏名／会社名、郵便番号、住所、TELを入力。',
     help_li2_b: '印鑑を設定', help_li2: '「会社印（角印）」と「個人印鑑」をアップロードまたは入力。ロゴも可。',

@@ -1,0 +1,22 @@
+# ---- 本地環境變數 / 機密 ----
+.env
+.env.*
+!.env.example
+
+# ---- AI 工具中介資料（本機工作階段紀錄，不入庫） ----
+.workbuddy-ai/
+
+# ---- 部署產物 / 平台設定 ----
+.edgeone/
+
+# ---- 微信開發者工具設定（含 appid，依需求決定是否入庫） ----
+project.config.json
+project.private.config.json
+
+# ---- 作業系統 / 編輯器雜訊 ----
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.log

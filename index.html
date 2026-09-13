@@ -96,6 +96,8 @@
   .btn.primary:hover { box-shadow: 0 18px 36px rgba(109, 93, 251, .45); }
   .btn.ghost { background: #fff; color: var(--navy-2); border-color: var(--line); }
   .btn.ghost:hover { background: #f3f6fa; }
+  .btn.sealgen { background: #fffdf5; color: #8a6a1f; border-color: #e2b04a; }
+  .btn.sealgen:hover { background: #fff6e0; border-color: #d4af37; }
 
   /* ---------- Hero ---------- */
   .hero { max-width: 1080px; margin: 0 auto; padding: 72px 28px 40px; text-align: center; }
@@ -244,7 +246,8 @@
           <button data-lang="ja" onclick="setLang('ja')">日本語</button>
         </div>
       </div>
-      <button class="btn ghost" onclick="openHelp()">使用說明</button>
+      <button class="btn ghost" onclick="openHelp()" data-i18n="nav_help">使用說明</button>
+      <a class="btn sealgen" href="https://sealkit.app/kaishain" target="_blank" rel="noopener noreferrer" data-i18n="nav_sealgen">🔏 印章產生器</a>
       <a class="btn primary" href="seikyusho.html">開始使用 →</a>
     </div>
   </nav>
@@ -381,7 +384,8 @@
         help_li5_b: '稅金與振込先', help_li5: '設定消費稅率與課稅開關，填寫銀行帳號（可切換第二組）。',
         help_li6_b: '儲存與匯出', help_li6: '草稿自動存於本機；點「PDF 下載」或「列印」取得正式請求書。',
         help_tip_b: '隱私提示：', help_tip: '所有資料僅保存在你的瀏覽器本機（localStorage），不會上傳任何伺服器。',
-        nav_help: '使用說明'
+        nav_help: '使用說明',
+        nav_sealgen: '🔏 印章產生器'
       },
       ja: {
         page_title: 'Free Invoice Generator · 請求書作成ツール',
@@ -419,7 +423,8 @@
         help_li5_b: '消費税と振込先', help_li5: '消費税率と課税のスイッチを設定。口座情報を入力（2つ目も可）。',
         help_li6_b: '保存と出力', help_li6: '下書きは端末内に自動保存。「PDFダウンロード」または「印刷」で正式な請求書を取得。',
         help_tip_b: 'プライバシー：', help_tip: 'すべてのデータはお使いのブラウザ内（localStorage）のみに保存。サーバーへは送信しません。',
-        nav_help: '使い方'
+        nav_help: '使い方',
+        nav_sealgen: '🔏 印鑑ジェネレーター'
       }
     };
     let LANG = 'zh';
