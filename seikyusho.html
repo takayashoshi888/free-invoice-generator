@@ -627,6 +627,7 @@ const I18N = {
     draft_empty: '（尚無草稿）',
     del_icon_title: '刪除',
     flash_saved: '草稿已儲存', flash_nodup: '尚無草稿可複製', flash_dup: '已複製上一次請求書', flash_loaded: '已載入草稿',
+    flash_pdf_working: '正在生成 PDF…',
     confirm_reset: '確定重設為樣本預設值？',
     alert_pdf: 'PDF 生成套件未載入（可能離線）。已改用列印：請在列印對話框選擇「另存為 PDF」。',
     bank_enabled: '帳戶 {0} 啟用', bank_name: '銀行名', bank_code: '金融機関コード',
@@ -661,6 +662,7 @@ const I18N = {
     draft_empty: '（下書きなし）',
     del_icon_title: '削除',
     flash_saved: '下書きを保存しました', flash_nodup: '複製する下書きがありません', flash_dup: '前回の請求書を複製しました', flash_loaded: '下書きを読み込みました',
+    flash_pdf_working: 'PDFを生成しています…',
     confirm_reset: 'サンプルの初期値に戻しますか？',
     alert_pdf: 'PDFライブラリが読み込めません（オフライン等）。印刷に切り替えます：「PDFとして保存」を選択してください。',
     bank_enabled: '口座 {0} を有効化', bank_name: '銀行名', bank_code: '金融機関コード',
@@ -833,12 +835,13 @@ const yen = n => '¥' + fmt(n);
 const pad2 = n => String(n).padStart(2, '0');
 const clone = o => JSON.parse(JSON.stringify(o));
 
-function flash(msg) {
+function flash(msg, ms) {
   const t = document.createElement('div');
   t.textContent = msg;
   t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1e3a5f;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:99;box-shadow:0 4px 16px rgba(0,0,0,.25)';
   document.body.appendChild(t);
-  setTimeout(() => t.remove(), 1600);
+  setTimeout(() => t.remove(), ms || 1600);
+  return t;
 }
 
 /* ---------- 3. 狀態（含 migration） ---------- */
@@ -1341,23 +1344,150 @@ function renderDrafts() {
   }).join('');
 }
 
-/* ---------- 9. PDF / 列印 ---------- */
-function downloadPDF() {
-  const el = $('#invoicePage');
-  if (window.html2canvas && window.jspdf) {
-    el.classList.remove('paper-shadow');
-    html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false }).then(canvas => {
-      el.classList.add('paper-shadow');
-      const imgData = canvas.toDataURL('image/png');
-      const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const pageW = 210;
-      const imgH = canvas.height * pageW / canvas.width;
-      pdf.addImage(imgData, 'PNG', 0, 0, pageW, imgH);
-      pdf.save('seikyusho_' + (state.invoiceNumber || 'invoice') + '.pdf');
-    }).catch(() => { el.classList.add('paper-shadow'); fallbackPrint(); });
+/* ---------- 9. PDF / 列印 ----------
+ * 【缺陷根因】原實作固定把整張 canvas 以「寬 210mm」貼到「單一張 A4」上，
+ * 圖片高度因此完全取決於 canvas 的長寬比：
+ *   - 桌面：預覽為 A4 版面（794×1123，比例 0.707）→ 圖高 297.0mm，剛好等於 A4 高 → 完整輸出。
+ *   - 行動端：fitInvoice() 會加上 .is-mobile 讓預覽回流成「寬 100%、內容縱向堆疊」的窄長版面
+ *     （約 370×1082，比例 0.35）→ 圖高約 614mm ≈ 2 倍 A4 高 →
+ *     超出 297mm 的下半部被畫在頁面框外，PDF 檢視器直接裁掉 → 「只顯示一半」。
+ * 【修法】匯出時改用「A4 桌面版」的離線副本（鎖定 794px、移除 .is-mobile），
+ * 使輸出比例恆為 A4；並加上微縮 / 分頁兩道保險，確保任何情況都不裁切內容。
+ */
+const A4_PX_W = 794;    // A4 @96dpi 寬（px），與 .invoice-page 一致
+const A4_PX_H = 1123;   // A4 @96dpi 高（px）
+const PDF_PAGE_W = 210; // A4 寬（mm）
+const PDF_PAGE_H = 297; // A4 高（mm）
+const CANVAS_MAX_AREA = 16777216; // iOS Safari canvas 面積上限約 16.7M px，超過會截斷或失敗
+const PDF_FIT_TOLERANCE = 1.12;   // 溢出一頁 12% 以內 → 等比微縮成單頁；超過才分頁
+
+let pdfBusy = false; // 防止行動端連點造成重複生成
+
+/** 依目標像素面積挑選安全的渲染倍率（避免 iOS canvas 過大而只渲染出部分內容） */
+function pickExportScale(w, h) {
+  const byArea = Math.sqrt(CANVAS_MAX_AREA / Math.max(1, w * h));
+  return Math.max(0.5, Math.min(2, Math.floor(byArea * 100) / 100));
+}
+
+/** 取樣檢查畫布是否真的畫上內容：寧可退回列印，也不要產出空白／半張 PDF */
+function canvasHasInk(canvas) {
+  try {
+    const band = Math.max(1, Math.round(canvas.height * 0.10));
+    const y = Math.min(canvas.height - band, Math.round(canvas.height * 0.15));
+    const d = canvas.getContext('2d').getImageData(0, y, canvas.width, band).data;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i] < 240 || d[i + 1] < 240 || d[i + 2] < 240) return true;
+    }
+    return false;
+  } catch (e) {
+    return true; // 取樣本身失敗時不阻擋流程
+  }
+}
+
+/**
+ * 產生「A4 桌面版」的離線匯出節點。
+ * 關鍵：移除 .is-mobile（行動端回流 class）並鎖定 794px 寬，
+ * 讓截圖比例恆為 A4（794:1123），不再因手機窄版面被拉長而超出一頁。
+ */
+function buildExportNode() {
+  const src = document.getElementById('invoicePage');
+  const node = src.cloneNode(true);
+  node.removeAttribute('id');
+  node.classList.remove('is-mobile', 'paper-shadow');
+  node.style.width = A4_PX_W + 'px';
+  node.style.minHeight = A4_PX_H + 'px';
+  node.style.margin = '0';
+  node.style.transform = 'none';
+  node.style.boxShadow = 'none';
+  node.style.background = '#ffffff';
+  return node;
+}
+
+/** 等待節點內所有圖片解碼完成（行動端常見：圖未載完就截圖 → 缺圖 / 半張） */
+function waitForImages(node) {
+  const imgs = Array.prototype.slice.call(node.querySelectorAll('img'));
+  if (!imgs.length) return Promise.resolve();
+  return Promise.all(imgs.map(function (img) {
+    if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+    return new Promise(function (resolve) {
+      let done = false;
+      const finish = function () { if (done) return; done = true; resolve(); };
+      img.addEventListener('load', finish);
+      img.addEventListener('error', finish);
+      setTimeout(finish, 3000); // 逾時保護，避免卡住不返回
+    });
+  }));
+}
+
+/** 依「單頁 / 微縮單頁 / 分頁」三種情況把 canvas 放進 PDF，確保內容永不裁切 */
+function composePdf(canvas) {
+  const jsPDFCtor = window.jspdf.jsPDF;
+  const pdf = new jsPDFCtor({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+  const imgData = canvas.toDataURL('image/png');
+  const imgW = PDF_PAGE_W;
+  const imgH = canvas.height * PDF_PAGE_W / canvas.width;
+
+  if (imgH <= PDF_PAGE_H) {
+    // 正常情況：一張 A4 剛好放滿（桌面端與修正後的行動端皆走此路徑）
+    pdf.addImage(imgData, 'PNG', 0, 0, imgW, imgH);
+  } else if (imgH <= PDF_PAGE_H * PDF_FIT_TOLERANCE) {
+    // 僅輕微超出一頁：等比微縮至整頁可視，避免為了一兩公釐而多出一張空白頁
+    const k = PDF_PAGE_H / imgH;
+    const w = imgW * k;
+    pdf.addImage(imgData, 'PNG', (PDF_PAGE_W - w) / 2, 0, w, PDF_PAGE_H);
   } else {
+    // 內容明顯超過一頁（大量明細 / 長地址）：逐頁位移輸出，下半部不再被丟棄
+    let offset = 0;
+    let first = true;
+    while (offset < imgH - 0.5) {
+      if (!first) pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, -offset, imgW, imgH);
+      offset += PDF_PAGE_H;
+      first = false;
+    }
+  }
+  pdf.save('seikyusho_' + (state.invoiceNumber || 'invoice') + '.pdf');
+}
+
+async function downloadPDF() {
+  if (pdfBusy) return;
+  if (!(window.html2canvas && window.jspdf && window.jspdf.jsPDF)) { fallbackPrint(); return; }
+
+  pdfBusy = true;
+  const toast = flash(t('flash_pdf_working'), 60000);
+
+  // 離線暫存容器：固定在畫面外，不影響使用者所見的預覽
+  const stage = document.createElement('div');
+  stage.setAttribute('aria-hidden', 'true');
+  stage.style.cssText = 'position:fixed;top:0;left:-10000px;width:' + A4_PX_W + 'px;background:#fff;pointer-events:none;';
+  const node = buildExportNode();
+  stage.appendChild(node);
+  document.body.appendChild(stage);
+
+  try {
+    // 等字型載入完成（Noto Sans JP 為 webfont，行動端未就緒時會影響文字度量）
+    if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
+    await waitForImages(node);
+
+    const w = node.offsetWidth || A4_PX_W;
+    const h = node.offsetHeight || A4_PX_H;
+    const canvas = await window.html2canvas(node, {
+      scale: pickExportScale(w, h),
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false
+    });
+    // 截圖異常（空白 / 尺寸為 0）時不輸出檔案，改走列印，避免產生半張 PDF
+    if (!canvas || !canvas.width || !canvas.height || !canvasHasInk(canvas)) {
+      throw new Error('empty canvas');
+    }
+    composePdf(canvas);
+  } catch (err) {
     fallbackPrint();
+  } finally {
+    if (stage.parentNode) stage.parentNode.removeChild(stage);
+    if (toast && toast.parentNode) toast.remove();
+    pdfBusy = false;
   }
 }
 function fallbackPrint() {
