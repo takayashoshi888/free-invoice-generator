@@ -399,6 +399,27 @@ await page.addInitScript(FREEZE_RANDOM);   // 必須在任何頁面腳本之前
 | 访问监控 | EdgeOne Pages 控制台首页：`访问概览`（24h：流量/请求/带宽峰值/防护次数）、`用量概览`（30 天） |
 | 流量下钻 | 点击任一指标可跳转到 EdgeOne 标准「数据分析 › 指标分析」，支持域名/状态码/地区筛选，时间跨度最长 31 天 |
 
+### 5.1 部署记录
+
+| 日期 | Commit | 内容 | 推送 | 线上部署确认 |
+|---|---|---|---|---|
+| 2026-09-30 | `20a44fd` | 修复行动端 PDF 只导出一半 | ✅ | 待人工确认 |
+| 2026-10-18 | `886a077` | 双页主题切换 + 明细表头配色 + 明细表栏宽修复 | ✅ `fec6810..886a077` | 待人工确认 |
+
+> ⚠️ **EdgeOne 不回写部署状态**：推送后 GitHub 的 `deployments` / `statuses` / `check-runs` 均为 0，
+> 无法从 GitHub 侧判断是否已重新部署；仓库与 `.edgeone/` 中**也没有记录线上域名**。
+> 因此每次推送后需到 EdgeOne Makers 控制台查看构建结果，或用线上域名实际访问确认。
+>
+> 本次推送的核验方式（服务端真值，非本地状态）：
+> ```bash
+> gh api repos/takayashoshi888/free-invoice-generator/commits/main --jq '.sha, (.commit.message|split("\n")[0])'
+> gh api "repos/takayashoshi888/free-invoice-generator/contents/seikyusho.html?ref=main" -q .content \
+>   | base64 -d | grep -c 'data-bar="orange"'      # 应为 2
+> ```
+> 已确认服务端 `seikyusho.html` 含 `data-bar="orange"`(2)、`sec_bar`(3)、`minmax(340px, 420px)`(1)、
+> `min-width: 64px`(1)；`index.html` 含 `data-theme="gold"`(2)；仓库根目录 6 项与本地一致
+> （`project.config.json` / `project.private.config.json` 依 `.gitignore` 不入库）。
+
 ---
 
 ## 6. 运维 / 环境注意事项（本机）
