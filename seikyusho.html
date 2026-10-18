@@ -11,79 +11,312 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
+  /* ==========================================================
+     主題系統（Theme System）— 僅作用於「介面」
+     ⚠️ A4 請求書本體一律使用 --doc-* 令牌，任何主題都不得覆寫，
+        以確保 PDF 匯出／列印結果不隨主題改變。
+     ========================================================== */
   :root {
-    --ink: #111;
-    --line: #444;
-    --header-bg: #1e3a5f;
-    --gray-bg: #f5f5f5;
-    --bank-bg: #f0f0f0;
-    --accent: #c0392b;   /* 印章紅 */
+    /* ---------- A4 請求書本體（固定，永不隨主題變動） ---------- */
+    --doc-ink: #111;
+    --doc-line: #444;
+    --doc-header-bg: #1e3a5f;
+    --doc-gray-bg: #f5f5f5;
+    --doc-bank-bg: #f0f0f0;
+    --doc-seal: #c0392b;   /* 印章紅 */
+
+    /* ---------- 介面令牌：預設 = classic（原版深藍） ---------- */
+    --ui-bg: #e8e9ec;
+    --ui-card: #ffffff;
+    --ui-card-2: #f7f8fa;
+    --ui-card-3: #fafbfc;
+    --ui-line: #dddddd;
+    --ui-line-2: #e2e6ea;
+    --ui-ink: #16263d;
+    --ui-ink-2: #444455;
+    --ui-muted: #5c6778;
+    --ui-muted-2: #606977;
+    --ui-heading: #556677;
+    --ui-primary: #1e3a5f;
+    --ui-primary-hover: #16304f;
+    --ui-on-primary: #ffffff;
+    --ui-accent-ink: #1e3a5f;
+    --ui-field-bg: #ffffff;
+    --ui-field-border: #ccd2d8;
+    --ui-focus: #1e3a5f;
+    --ui-focus-ring: rgba(30, 58, 95, .12);
+    --ui-hover: #f2f4f7;
+    --ui-hover-2: #e6e9ee;
+    --ui-active-bg: #eef2ff;
+    --ui-active-ink: #1e3a5f;
+    --ui-danger: #aa3333;
+    --ui-danger-hover: #660000;
+    --ui-dash: #b7bec6;
+    --ui-sealgen-bg: #fffdf5;
+    --ui-sealgen-ink: #8a6a1f;
+    --ui-sealgen-line: #e2b04a;
+    --ui-sealgen-hover: #fff6e0;
+    --ui-overlay: rgba(15, 25, 40, .5);
+    --ui-shadow-menu: 0 10px 26px rgba(0, 0, 0, .18);
+    --ui-shadow-modal: 0 24px 60px rgba(0, 0, 0, .3);
+    --ui-shadow-paper: 0 8px 30px rgba(20, 30, 50, .18);
+  }
+
+  /* ---------- A. 黑白正式：純白紙 + 黑墨 + 細灰規線 ---------- */
+  html[data-theme="mono"] {
+    --ui-bg: #f2f2f3;
+    --ui-card: #ffffff;
+    --ui-card-2: #f7f7f7;
+    --ui-card-3: #fafafa;
+    --ui-line: #d8d8d8;
+    --ui-line-2: #e6e6e6;
+    --ui-ink: #111111;
+    --ui-ink-2: #3d3d3d;
+    --ui-muted: #6b6b6b;
+    --ui-muted-2: #6e6e6e;
+    --ui-heading: #4a4a4a;
+    --ui-primary: #111111;
+    --ui-primary-hover: #000000;
+    --ui-on-primary: #ffffff;
+    --ui-accent-ink: #111111;
+    --ui-field-bg: #ffffff;
+    --ui-field-border: #cfcfcf;
+    --ui-focus: #111111;
+    --ui-focus-ring: rgba(0, 0, 0, .14);
+    --ui-hover: #f2f2f2;
+    --ui-hover-2: #e6e6e6;
+    --ui-active-bg: #111111;
+    --ui-active-ink: #ffffff;
+    --ui-danger: #9a1f14;
+    --ui-danger-hover: #6b120b;
+    --ui-dash: #b5b5b5;
+    --ui-sealgen-bg: #ffffff;
+    --ui-sealgen-ink: #111111;
+    --ui-sealgen-line: #c9c9c9;
+    --ui-sealgen-hover: #f2f2f2;
+    --ui-overlay: rgba(0, 0, 0, .55);
+    --ui-shadow-menu: 0 10px 24px rgba(0, 0, 0, .12);
+    --ui-shadow-modal: 0 24px 56px rgba(0, 0, 0, .22);
+    --ui-shadow-paper: 0 6px 24px rgba(0, 0, 0, .12);
+  }
+
+  /* ---------- B. 藍色商務：企業藍 #1d4ed8 + 天空藍 ---------- */
+  html[data-theme="blue"] {
+    --ui-bg: #eef3fa;
+    --ui-card: #ffffff;
+    --ui-card-2: #f5f9ff;
+    --ui-card-3: #fafcff;
+    --ui-line: #d3dfee;
+    --ui-line-2: #e2ebf6;
+    --ui-ink: #0f2744;
+    --ui-ink-2: #38506e;
+    --ui-muted: #57698a;
+    --ui-muted-2: #5a6d83;
+    --ui-heading: #4a6584;
+    --ui-primary: #1d4ed8;
+    --ui-primary-hover: #1a45c0;
+    --ui-on-primary: #ffffff;
+    --ui-accent-ink: #1d4ed8;
+    --ui-field-bg: #ffffff;
+    --ui-field-border: #cbd9ea;
+    --ui-focus: #2563eb;
+    --ui-focus-ring: rgba(37, 99, 235, .16);
+    --ui-hover: #eef4fc;
+    --ui-hover-2: #e2ebf7;
+    --ui-active-bg: #e0ecff;
+    --ui-active-ink: #1d4ed8;
+    --ui-danger: #b03030;
+    --ui-danger-hover: #8a1f1f;
+    --ui-dash: #b9c9dd;
+    --ui-sealgen-bg: #fffdf5;
+    --ui-sealgen-ink: #8a6a1f;
+    --ui-sealgen-line: #e2b04a;
+    --ui-sealgen-hover: #fff6e0;
+    --ui-overlay: rgba(11, 30, 53, .55);
+    --ui-shadow-menu: 0 10px 26px rgba(15, 39, 68, .18);
+    --ui-shadow-modal: 0 24px 60px rgba(15, 39, 68, .28);
+    --ui-shadow-paper: 0 8px 30px rgba(15, 39, 68, .18);
+  }
+
+  /* ---------- C. 灰色極簡：中性灰、低對比、去裝飾 ---------- */
+  html[data-theme="gray"] {
+    --ui-bg: #f4f4f5;
+    --ui-card: #ffffff;
+    --ui-card-2: #fafafa;
+    --ui-card-3: #fcfcfc;
+    --ui-line: #e2e2e4;
+    --ui-line-2: #eeeeef;
+    --ui-ink: #1f2124;
+    --ui-ink-2: #4a4d52;
+    --ui-muted: #686c73;
+    --ui-muted-2: #6a6e75;
+    --ui-heading: #62666c;
+    --ui-primary: #2f3337;
+    --ui-primary-hover: #1a1c1f;
+    --ui-on-primary: #ffffff;
+    --ui-accent-ink: #33373c;
+    --ui-field-bg: #ffffff;
+    --ui-field-border: #dcdcde;
+    --ui-focus: #52565c;
+    --ui-focus-ring: rgba(82, 86, 92, .16);
+    --ui-hover: #f3f3f4;
+    --ui-hover-2: #eaeaec;
+    --ui-active-bg: #ececee;
+    --ui-active-ink: #141517;
+    --ui-danger: #9c3a30;
+    --ui-danger-hover: #7a2a22;
+    --ui-dash: #c4c4c6;
+    --ui-sealgen-bg: #ffffff;
+    --ui-sealgen-ink: #3a3d42;
+    --ui-sealgen-line: #dcdcde;
+    --ui-sealgen-hover: #f3f3f4;
+    --ui-overlay: rgba(20, 21, 23, .5);
+    --ui-shadow-menu: 0 10px 24px rgba(0, 0, 0, .08);
+    --ui-shadow-modal: 0 24px 52px rgba(0, 0, 0, .18);
+    --ui-shadow-paper: 0 6px 22px rgba(0, 0, 0, .09);
+  }
+
+  /* ---------- E. 橘黃：暖橘 + 琥珀 ---------- */
+  html[data-theme="orange"] {
+    --ui-bg: #fdf4ea;
+    --ui-card: #ffffff;
+    --ui-card-2: #fffaf4;
+    --ui-card-3: #fffdf9;
+    --ui-line: #f0ddc9;
+    --ui-line-2: #f6e8d8;
+    --ui-ink: #2b1d10;
+    --ui-ink-2: #5a4530;
+    --ui-muted: #7d6449;
+    --ui-muted-2: #755d45;
+    --ui-heading: #8a6a4a;
+    --ui-primary: #c2410c;
+    --ui-primary-hover: #a53a0a;
+    --ui-on-primary: #ffffff;
+    --ui-accent-ink: #c2410c;
+    --ui-field-bg: #ffffff;
+    --ui-field-border: #ecd8c2;
+    --ui-focus: #ea580c;
+    --ui-focus-ring: rgba(234, 88, 12, .16);
+    --ui-hover: #fdf3e8;
+    --ui-hover-2: #f8e8d6;
+    --ui-active-bg: #ffedd5;
+    --ui-active-ink: #c2410c;
+    --ui-danger: #b03030;
+    --ui-danger-hover: #8a1f1f;
+    --ui-dash: #dcc4a8;
+    --ui-sealgen-bg: #fffdf5;
+    --ui-sealgen-ink: #8a6a1f;
+    --ui-sealgen-line: #e2b04a;
+    --ui-sealgen-hover: #fff6e0;
+    --ui-overlay: rgba(43, 29, 16, .55);
+    --ui-shadow-menu: 0 10px 26px rgba(80, 45, 10, .16);
+    --ui-shadow-modal: 0 24px 60px rgba(80, 45, 10, .26);
+    --ui-shadow-paper: 0 8px 30px rgba(80, 45, 10, .16);
+  }
+
+  /* 切換主題時的短暫過渡（僅作用於介面，不影響 A4 本體） */
+  html.theme-switching .toolbar,
+  html.theme-switching .form-panel,
+  html.theme-switching .btn,
+  html.theme-switching .lang-btn,
+  html.theme-switching .lang-menu,
+  html.theme-switching .field input,
+  html.theme-switching .field select,
+  html.theme-switching .field textarea,
+  html.theme-switching .summary-box,
+  html.theme-switching .upload-box,
+  html.theme-switching .draft-item,
+  html.theme-switching .seg button,
+  html.theme-switching .modal {
+    transition: background-color .28s ease, border-color .28s ease, color .28s ease !important;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html.theme-switching * { transition: none !important; }
   }
   * { box-sizing: border-box; }
   body {
     margin: 0;
     font-family: 'Noto Sans JP', system-ui, sans-serif;
-    background: #e8e9ec;
-    color: var(--ink);
+    background: var(--ui-bg);
+    color: var(--ui-ink);
   }
 
   /* ---------- App chrome ---------- */
   .toolbar {
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-    padding: 12px 20px; background: #fff; border-bottom: 1px solid #ddd;
+    padding: 12px 20px; background: var(--ui-card); border-bottom: 1px solid var(--ui-line);
     position: sticky; top: 0; z-index: 20;
   }
   .toolbar .brand { display: inline-flex; align-items: center; gap: 9px; font-weight: 900; font-size: 17px; margin-right: auto; }
   .toolbar .logo-mark { width: 34px; height: 34px; flex: 0 0 auto; display: block; }
   .btn {
     font-family: inherit; font-size: 13px; padding: 8px 14px; border-radius: 8px;
-    border: 1px solid #ccc; background: #fff; cursor: pointer; text-decoration: none;
+    border: 1px solid var(--ui-line); background: var(--ui-card); cursor: pointer; text-decoration: none;
     transition: background .15s, border-color .15s;
   }
-  .btn:hover { background: #f2f4f7; border-color: #aaa; }
-  .btn.primary { background: #1e3a5f; color: #fff; border-color: #1e3a5f; }
-  .btn.primary:hover { background: #16304f; }
-  .btn.danger { color: #a33; }
+  .btn:hover { background: var(--ui-hover); border-color: var(--ui-line); }
+  .btn.primary { background: var(--ui-primary); color: var(--ui-on-primary); border-color: var(--ui-primary); }
+  .btn.primary:hover { background: var(--ui-primary-hover); }
+  .btn.danger { color: var(--ui-danger); }
 
   /* 印章產生器入口（外部工具，金色點綴以提升辨識度） */
-  .btn.sealgen { border-color: #e2b04a; color: #8a6a1f; background: #fffdf5; }
-  .btn.sealgen:hover { background: #fff6e0; border-color: #d4af37; }
+  .btn.sealgen { border-color: var(--ui-sealgen-line); color: var(--ui-sealgen-ink); background: var(--ui-sealgen-bg); }
+  .btn.sealgen:hover { background: var(--ui-sealgen-hover); border-color: var(--ui-sealgen-line); }
 
   /* 表單內：印章產生器的情境提示 */
   .sealgen-hint {
-    margin: 10px 0 4px; font-size: 12px; line-height: 1.65; color: #6a788c;
-    background: #fffdf5; border: 1px dashed #e2b04a; border-radius: 8px; padding: 9px 11px;
+    margin: 10px 0 4px; font-size: 12px; line-height: 1.65; color: var(--ui-muted);
+    background: var(--ui-sealgen-bg); border: 1px dashed var(--ui-sealgen-line); border-radius: 8px; padding: 9px 11px;
   }
-  .sealgen-hint a { color: #8a6a1f; font-weight: 700; text-decoration: underline; }
-  .sealgen-hint a:hover { color: #6d520f; }
+  .sealgen-hint a { color: var(--ui-sealgen-ink); font-weight: 700; text-decoration: underline; }
+  .sealgen-hint a:hover { color: var(--ui-sealgen-ink); }
 
   /* ---------- 語言切換（小地球） ---------- */
   .lang-switch { position: relative; }
   .lang-btn {
     font-family: inherit; font-size: 13px; padding: 8px 12px; border-radius: 8px;
-    border: 1px solid #ccc; background: #fff; cursor: pointer;
-    display: inline-flex; align-items: center; gap: 6px; color: var(--ink);
+    border: 1px solid var(--ui-line); background: var(--ui-card); cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px; color: var(--ui-ink);
   }
-  .lang-btn:hover { background: #f2f4f7; border-color: #aaa; }
+  .lang-btn:hover { background: var(--ui-hover); border-color: var(--ui-line); }
   .lang-btn .globe { font-size: 15px; line-height: 1; }
   .lang-btn .caret { font-size: 9px; opacity: .6; }
   .lang-menu {
     position: absolute; right: 0; top: calc(100% + 8px);
-    background: #fff; border: 1px solid #ddd; border-radius: 10px;
-    box-shadow: 0 10px 26px rgba(0,0,0,.18); padding: 6px; min-width: 130px;
+    background: var(--ui-card); border: 1px solid var(--ui-line); border-radius: 10px;
+    box-shadow: var(--ui-shadow-menu); padding: 6px; min-width: 130px;
     display: none; z-index: 30;
   }
   .lang-switch.open .lang-menu { display: block; }
   .lang-menu button {
     display: block; width: 100%; text-align: left; font-family: inherit; font-size: 13px;
-    padding: 8px 11px; border: none; background: #fff; cursor: pointer; border-radius: 7px; color: var(--ink);
+    padding: 8px 11px; border: none; background: var(--ui-card); cursor: pointer; border-radius: 7px; color: var(--ui-ink);
   }
-  .lang-menu button:hover { background: #f2f4f7; }
-  .lang-menu button.active { background: #eef2ff; color: #1e3a5f; font-weight: 700; }
+  .lang-menu button:hover { background: var(--ui-hover); }
+  .lang-menu button.active { background: var(--ui-active-bg); color: var(--ui-active-ink); font-weight: 700; }
+
+  /* ---------- 主題切換（僅介面） ---------- */
+  .theme-menu { min-width: 176px; }
+  .theme-menu button { display: flex; align-items: center; gap: 8px; }
+  .theme-menu .sw {
+    width: 13px; height: 13px; border-radius: 4px; flex: 0 0 auto;
+    box-shadow: inset 0 0 0 1px rgba(128, 128, 128, .35);
+  }
+  .sw-classic { background: linear-gradient(135deg, #1e3a5f, #6d5dfb); }
+  .sw-mono    { background: linear-gradient(135deg, #000000, #4a4a4a); }
+  .sw-blue    { background: linear-gradient(135deg, #1d4ed8, #38bdf8); }
+  .sw-gray    { background: linear-gradient(135deg, #33373c, #9aa0a8); }
+  .sw-orange  { background: linear-gradient(135deg, #ea580c, #fbbf24); }
 
   .layout {
     display: grid;
-    grid-template-columns: minmax(340px, 400px) 1fr;
+    /* 表單欄上限由 400 → 420：明細表 6 欄需要約 380px 內寬才放得下「単位」下拉，
+       400px 扣掉左右 20px 內距只剩 360px，會把単位擠成 28px（文字被裁）。
+       右側預覽改用 minmax(0, 1fr)，讓它可收縮而不是把表單欄壓扁：
+       ≥1262px 時預覽剛好 842px（794 A4 + 48 內距）→ 顯示完整 A4；
+       1101–1261px 時預覽 <794px → fitInvoice() 自動切換成行動端回流預覽，
+       表單仍保有 420px 可讀寬度（舊寫法在此區間會把表單壓到 340px 並產生橫向溢出）。 */
+    grid-template-columns: minmax(340px, 420px) minmax(0, 1fr);
     gap: 0;
     align-items: start;
   }
@@ -91,81 +324,125 @@
   /* ---------- Form ---------- */
   .form-panel {
     padding: 20px; overflow-y: auto;
-    max-height: calc(100vh - 61px);
-    position: sticky; top: 61px;
+    max-height: calc(100vh - var(--toolbar-h, 61px));
+    position: sticky; top: var(--toolbar-h, 61px);
   }
   .form-panel h2 {
-    font-size: 13px; letter-spacing: .05em; color: #567;
+    font-size: 13px; letter-spacing: .05em; color: var(--ui-heading);
     text-transform: uppercase; margin: 22px 0 8px;
-    border-bottom: 1px solid #e2e6ea; padding-bottom: 4px;
+    border-bottom: 1px solid var(--ui-line-2); padding-bottom: 4px;
   }
   .form-panel h2:first-child { margin-top: 0; }
   .field { margin-bottom: 10px; }
-  .field label { display: block; font-size: 12px; color: #455; margin-bottom: 3px; }
+  .field label { display: block; font-size: 12px; color: var(--ui-ink-2); margin-bottom: 3px; }
   .field input, .field select, .field textarea {
     width: 100%; font-family: inherit; font-size: 14px;
-    padding: 8px 10px; border: 1px solid #ccd2d8; border-radius: 7px; background: #fff;
+    padding: 8px 10px; border: 1px solid var(--ui-field-border); border-radius: 7px; background: var(--ui-field-bg);
   }
   .field input:focus, .field select:focus, .field textarea:focus {
-    outline: none; border-color: #1e3a5f; box-shadow: 0 0 0 2px rgba(30,58,95,.12);
+    outline: none; border-color: var(--ui-focus); box-shadow: 0 0 0 2px var(--ui-focus-ring);
   }
   .field textarea { resize: vertical; min-height: 52px; }
   .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .check { display: flex; align-items: center; gap: 8px; font-size: 13px; margin: 6px 0; }
   .check input { width: auto; }
 
-  .seg { display: inline-flex; border: 1px solid #ccd2d8; border-radius: 8px; overflow: hidden; }
+  .seg { display: inline-flex; border: 1px solid var(--ui-field-border); border-radius: 8px; overflow: hidden; }
   .seg button {
-    font-family: inherit; font-size: 13px; padding: 7px 12px; border: none; background: #fff; cursor: pointer;
+    font-family: inherit; font-size: 13px; padding: 7px 12px; border: none; background: var(--ui-card); cursor: pointer;
   }
-  .seg button.on { background: #1e3a5f; color: #fff; }
+  .seg button.on { background: var(--ui-primary); color: var(--ui-on-primary); }
+
+  /* ---------- 明細表頭顏色選擇器（介面元素，隨主題走 --ui-*） ---------- */
+  .bar-picker { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .bar-picker button {
+    font-family: inherit; font-size: 12px; padding: 6px 9px; border-radius: 7px;
+    border: 1px solid var(--ui-field-border); background: var(--ui-field-bg); color: var(--ui-ink-2);
+    cursor: pointer; display: inline-flex; align-items: center; gap: 6px; line-height: 1.2;
+  }
+  .bar-picker button:hover { background: var(--ui-hover); }
+  .bar-picker button.active {
+    border-color: var(--ui-accent-ink); color: var(--ui-accent-ink); font-weight: 700;
+    box-shadow: 0 0 0 2px var(--ui-focus-ring);
+  }
+  .bar-picker .bs {
+    width: 12px; height: 12px; border-radius: 3px; flex: 0 0 auto;
+    box-shadow: inset 0 0 0 1px rgba(128, 128, 128, .35);
+  }
+  .bs-classic { background: #1e3a5f; }
+  .bs-blue    { background: #1d4ed8; }
+  .bs-black   { background: #111111; }
+  .bs-gray    { background: #5b6068; }
+  .bs-orange  { background: #c2410c; }
 
   .items-table { width: 100%; border-collapse: collapse; font-size: 13px; }
   .items-table th, .items-table td { padding: 4px; text-align: left; }
+  /* 表單面板內寬約 380px，6 欄若交給 auto 佈局會平均分配，
+     「単位」下拉只剩 28px —— 連「人工」兩個字都放不下（文字 26px + 內距 + 下拉箭頭 ≈ 64px）。
+     故明確指定各欄寬度：收窄 数量/単価 的冗餘，讓給 単位。
+     各欄下限的算法：數字框 = 文字 + 內距12 + 邊框2 + 數字微調鈕16；下拉 = 文字 + 內距12 + 邊框2 + 箭頭18。 */
+  .items-table th:nth-child(2) { width: 60px; }   /* 数量：容 3 位數 */
+  .items-table th:nth-child(3) { width: 68px; }   /* 単位：容 2 個漢字 */
+  .items-table th:nth-child(4) { width: 72px; }   /* 単価：容 5 位數 */
   .items-table input, .items-table select {
-    width: 100%; font-family: inherit; font-size: 13px; padding: 6px; border: 1px solid #ccd2d8; border-radius: 6px;
+    width: 100%; font-family: inherit; font-size: 13px; padding: 6px; border: 1px solid var(--ui-field-border); border-radius: 6px;
   }
+  /* 硬下限：即使其他欄內容變長擠壓，下拉也絕不窄於此 */
+  .items-table select { min-width: 64px; }
   .items-table .amt { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; padding: 4px 6px; }
-  .icon-btn { border: none; background: none; cursor: pointer; color: #a33; font-size: 16px; padding: 2px 6px; }
-  .icon-btn:hover { color: #600; }
-  .mini-btn { font-family: inherit; font-size: 12px; padding: 6px 10px; border-radius: 6px; border: 1px dashed #99a; background: #fff; cursor: pointer; }
-  .mini-btn:hover { background: #f2f4f7; }
+  .icon-btn { border: none; background: none; cursor: pointer; color: var(--ui-danger); font-size: 16px; padding: 2px 6px; }
+  .icon-btn:hover { color: var(--ui-danger-hover); }
+  .mini-btn { font-family: inherit; font-size: 12px; padding: 6px 10px; border-radius: 6px; border: 1px dashed var(--ui-line-2); background: var(--ui-card); cursor: pointer; }
+  .mini-btn:hover { background: var(--ui-hover); }
 
   .upload-box {
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-    border: 1px dashed #b7bec6; border-radius: 8px; padding: 10px;
-    background: #fafbfc; margin-bottom: 8px;
+    border: 1px dashed var(--ui-dash); border-radius: 8px; padding: 10px;
+    background: var(--ui-card-3); margin-bottom: 8px;
   }
-  .upload-box img { width: 40px; height: 40px; object-fit: contain; border: 1px solid #eee; border-radius: 5px; background: #fff; }
-  .upload-box .upload-label { flex: 1 1 120px; font-size: 12px; color: #567; }
-  .upload-box button { font-family: inherit; font-size: 12px; padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
-  .upload-box .clear { color: #a33; }
+  .upload-box img { width: 40px; height: 40px; object-fit: contain; border: 1px solid var(--ui-line-2); border-radius: 5px; background: var(--ui-card); }
+  .upload-box .upload-label { flex: 1 1 120px; font-size: 12px; color: var(--ui-heading); }
+  .upload-box button { font-family: inherit; font-size: 12px; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--ui-line); background: var(--ui-card); cursor: pointer; }
+  .upload-box .clear { color: var(--ui-danger); }
 
-  .summary-box { background: #f7f8fa; border: 1px solid #e2e6ea; border-radius: 9px; padding: 12px 14px; font-size: 13px; }
+  .summary-box { background: var(--ui-card-2); border: 1px solid var(--ui-line-2); border-radius: 9px; padding: 12px 14px; font-size: 13px; }
   .summary-box .row { display: flex; justify-content: space-between; padding: 2px 0; }
-  .summary-box .row.total { font-weight: 700; border-top: 1px solid #dde2e6; margin-top: 6px; padding-top: 6px; font-size: 15px; }
+  .summary-box .row.total { font-weight: 700; border-top: 1px solid var(--ui-line-2); margin-top: 6px; padding-top: 6px; font-size: 15px; }
 
   .draft-list { display: flex; flex-direction: column; gap: 6px; }
-  .draft-item { display: flex; align-items: center; gap: 8px; font-size: 12px; background: #fff; border: 1px solid #e2e6ea; border-radius: 7px; padding: 6px 9px; }
+  .draft-item { display: flex; align-items: center; gap: 8px; font-size: 12px; background: var(--ui-card); border: 1px solid var(--ui-line-2); border-radius: 7px; padding: 6px 9px; }
   .draft-item .meta { flex: 1; min-width: 0; }
   .draft-item .meta b { display: block; font-size: 13px; }
-  .draft-item .meta span { color: #789; }
-  .draft-item button { font-family: inherit; font-size: 11px; padding: 4px 8px; border-radius: 6px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
-  .hint { font-size: 11px; color: #98a; margin-top: 6px; line-height: 1.5; }
+  .draft-item .meta span { color: var(--ui-muted); }
+  .draft-item button { font-family: inherit; font-size: 11px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--ui-line); background: var(--ui-card); cursor: pointer; }
+  .hint { font-size: 11px; color: var(--ui-muted-2); margin-top: 6px; line-height: 1.5; }
 
   /* ---------- Preview ---------- */
   .preview-col {
     padding: 24px;
     display: flex; justify-content: center; align-items: flex-start;
+    overflow-x: auto;
   }
-  .paper-shadow { box-shadow: 0 8px 30px rgba(20,30,50,.18); }
+  .paper-shadow { box-shadow: var(--ui-shadow-paper); }
 
   .invoice-page {
     width: 794px; min-height: 1123px;
     background: #fff; padding: 52px 56px 40px;
-    position: relative; color: #111;
+    position: relative; color: var(--doc-ink);
     font-size: 14px; line-height: 1.55;
   }
+
+  /* ---------- 明細表頭顏色（文件級設定，與介面主題完全正交） ----------
+     ⚠️ 只覆寫 --doc-header-bg，且作用範圍限於「該張請求書」(.invoice-page)。
+        不觸碰 --ui-*，因此：
+          · 切換介面主題不會改變這裡的選擇
+          · 改變這裡的選擇不會影響介面
+        這是「紙本」與「介面」兩套命名空間的分界線，勿把 --ui-* 寫進來。 */
+  .invoice-page[data-bar="classic"] { --doc-header-bg: #1e3a5f; }  /* 原版深藍 */
+  .invoice-page[data-bar="blue"]    { --doc-header-bg: #1d4ed8; }  /* 藍色 */
+  .invoice-page[data-bar="black"]   { --doc-header-bg: #111111; }  /* 黑色 */
+  .invoice-page[data-bar="gray"]    { --doc-header-bg: #5b6068; }  /* 灰色 */
+  .invoice-page[data-bar="orange"]  { --doc-header-bg: #c2410c; }  /* 橘黃 */
 
   .top-right { text-align: right; margin-bottom: 6px; }
   .top-right .date { font-size: 15px; }
@@ -225,7 +502,7 @@
   /* 公司印章：方型紅印（角印），置於發行人資訊右側 */
   .seal.company {
     width: 86px; height: 86px;
-    background: var(--accent);
+    background: var(--doc-seal);
     color: #fff;
     border-radius: 4px;
     display: flex; align-items: center; justify-content: center;
@@ -259,8 +536,8 @@
   .seal.personal {
     display: inline-flex; align-items: center; justify-content: center;
     width: 52px; height: 52px;
-    border: 2.5px solid var(--accent);
-    color: var(--accent);
+    border: 2.5px solid var(--doc-seal);
+    color: var(--doc-seal);
     border-radius: 8px;
     font-weight: 900; font-size: 12px;
     line-height: 1.2; text-align: center;
@@ -274,15 +551,15 @@
 
   .amount-bar {
     display: flex; justify-content: space-between; align-items: center;
-    background: var(--gray-bg); border: 1px solid #ddd;
+    background: var(--doc-gray-bg); border: 1px solid #ddd;
     padding: 12px 20px; margin: 28px 0 24px;
   }
   .amount-bar .lbl { font-size: 15px; font-weight: 700; }
   .amount-bar .val { font-size: 26px; font-weight: 900; letter-spacing: .02em; }
 
   table.items { width: 100%; border-collapse: collapse; }
-  table.items th, table.items td { border: 1px solid #444; padding: 8px 10px; }
-  table.items thead th { background: var(--header-bg); color: #fff; font-weight: 700; font-size: 13.5px; }
+  table.items th, table.items td { border: 1px solid var(--doc-line); padding: 8px 10px; }
+  table.items thead th { background: var(--doc-header-bg); color: #fff; font-weight: 700; font-size: 13.5px; }
   table.items td { font-size: 13.5px; }
   table.items .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
   table.items .desc { text-align: left; }
@@ -296,10 +573,10 @@
   .totals .trow { display: flex; justify-content: space-between; padding: 6px 4px; font-size: 14px; }
   .totals .trow.total {
     font-weight: 900; font-size: 17px;
-    border-top: 2px solid #444; margin-top: 4px; padding-top: 8px;
+    border-top: 2px solid var(--doc-line); margin-top: 4px; padding-top: 8px;
   }
 
-  .bank-section { background: var(--bank-bg); border: 1px solid #e0e0e0; padding: 16px 18px; margin-top: 30px; }
+  .bank-section { background: var(--doc-bank-bg); border: 1px solid #e0e0e0; padding: 16px 18px; margin-top: 30px; }
   .bank-section .bank-title { font-weight: 700; font-size: 14px; margin-bottom: 10px; }
   .banks { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .banks.one { grid-template-columns: 1fr; }
@@ -311,34 +588,34 @@
   /* ---------- 使用說明彈窗 ---------- */
   .modal-overlay {
     position: fixed; inset: 0; z-index: 60;
-    background: rgba(15,25,40,.5);
+    background: var(--ui-overlay);
     display: none; align-items: center; justify-content: center;
     padding: 20px;
   }
   .modal-overlay.open { display: flex; }
   .modal {
-    background: #fff; border-radius: 16px; max-width: 560px; width: 100%;
-    max-height: 86vh; overflow-y: auto; box-shadow: 0 24px 60px rgba(0,0,0,.3);
+    background: var(--ui-card); border-radius: 16px; max-width: 560px; width: 100%;
+    max-height: 86vh; overflow-y: auto; box-shadow: var(--ui-shadow-modal);
   }
   .modal-head {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 18px 22px; border-bottom: 1px solid #eef1f5; position: sticky; top: 0; background: #fff;
+    padding: 18px 22px; border-bottom: 1px solid var(--ui-line-2); position: sticky; top: 0; background: var(--ui-card);
   }
-  .modal-head h2 { font-size: 18px; margin: 0; color: #16263d; }
+  .modal-head h2 { font-size: 18px; margin: 0; color: var(--ui-ink); }
   .modal-close {
-    border: none; background: #f1f3f6; color: #445; cursor: pointer;
+    border: none; background: var(--ui-hover); color: var(--ui-ink-2); cursor: pointer;
     width: 34px; height: 34px; border-radius: 9px; font-size: 18px; line-height: 1;
   }
-  .modal-close:hover { background: #e6e9ee; }
+  .modal-close:hover { background: var(--ui-hover-2); }
   .modal-body { padding: 20px 22px 24px; }
   .modal-body ol { margin: 0; padding-left: 20px; }
-  .modal-body li { font-size: 14px; color: #3a4759; line-height: 1.75; margin-bottom: 10px; }
-  .modal-body li b { color: #16263d; }
+  .modal-body li { font-size: 14px; color: var(--ui-ink-2); line-height: 1.75; margin-bottom: 10px; }
+  .modal-body li b { color: var(--ui-ink); }
   .modal-body .tip {
-    margin-top: 14px; font-size: 12.5px; color: #6a788c;
-    background: #f6f8fa; border: 1px solid #e6eaf0; border-radius: 10px; padding: 12px 14px; line-height: 1.6;
+    margin-top: 14px; font-size: 12.5px; color: var(--ui-muted);
+    background: var(--ui-card-2); border: 1px solid var(--ui-line-2); border-radius: 10px; padding: 12px 14px; line-height: 1.6;
   }
-  .modal-body .tip b { color: #c0392b; }
+  .modal-body .tip b { color: var(--ui-danger); }
 
   /* ---------- Print ---------- */
   @page { size: A4; margin: 0; }
@@ -353,7 +630,7 @@
   @media (max-width: 1100px) {
     .layout { grid-template-columns: 1fr; }
     .form-panel { position: static; max-height: none; }
-    .preview-col { overflow-x: auto; justify-content: flex-start; padding: 14px; }
+    .preview-col { justify-content: flex-start; padding: 14px; }
   }
 
   /* 行動端：縮小工具列與按鈕，避免溢出 */
@@ -362,10 +639,38 @@
     .toolbar .brand { font-size: 15px; }
     .btn { font-size: 12px; padding: 7px 10px; border-radius: 7px; }
     .lang-btn { font-size: 12px; padding: 7px 10px; }
+    .theme-switch .theme-name { display: none; }
+    .theme-menu { min-width: 156px; }
     .preview-col { padding: 10px; }
     .form-panel { padding: 14px; }
     .field label { font-size: 11px; }
     .items-table input, .items-table select { font-size: 12px; padding: 5px; }
+    /* 手機：面板內寬約 362px，字級降為 12px 後各欄下限同步下修，
+       仍確保「単位」下拉 ≥56px（容得下 2 個漢字 + 箭頭）。 */
+    .items-table th:nth-child(2) { width: 56px; }   /* 数量 */
+    .items-table th:nth-child(3) { width: 66px; }   /* 単位 */
+    .items-table th:nth-child(4) { width: 70px; }   /* 単価 */
+    .items-table select { min-width: 56px; }
+  }
+
+  /* 極窄螢幕（≤380px，如 iPhone SE 一代 / 小尺吋 Android）：內寬僅約 332px，
+     6 欄無法全部寬鬆容納。此處再收 金額／削除 兩個非輸入欄，把空間讓給「品目」，
+     並確保「単位」下拉仍有 24px 可用文字寬（剛好容納 2 個漢字）。 */
+  @media (max-width: 380px) {
+    .items-table th:nth-child(2) { width: 56px; }   /* 数量 */
+    .items-table th:nth-child(3) { width: 62px; }   /* 単位 */
+    .items-table th:nth-child(4) { width: 68px; }   /* 単価 */
+    .items-table th:nth-child(5) { width: 50px; }   /* 金額（唯讀） */
+    .items-table select { min-width: 54px; }
+    .items-table .amt { padding: 4px 3px; }
+    .items-table .icon-btn { padding: 2px 2px; font-size: 14px; }
+  }
+
+  /* 超窄（≤340px）：6 欄已無解，隱藏唯讀的「金額」欄（金額仍可在下方小計／合計檢視），
+     把空間留給「品目」輸入框，避免出現 22px 的無法輸入寬度。 */
+  @media (max-width: 340px) {
+    .items-table th:nth-child(5),
+    .items-table td:nth-child(5) { display: none; }
   }
 
   /* 行動端發票：當容器寬度 < A4（794px）時由 JS 加上 .is-mobile，
@@ -423,6 +728,19 @@
   }
 </style>
 
+<!-- 提早套用已儲存主題（與首頁共用 fig_theme），避免載入瞬間色差 -->
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem('fig_theme');
+      // 本頁不支援「黑金品牌」（深色版不適合正式請求書介面）→ 回落到原版
+      if (t && ['mono', 'blue', 'gray', 'orange'].indexOf(t) >= 0) {
+        document.documentElement.setAttribute('data-theme', t);
+      }
+    } catch (e) {}
+  })();
+</script>
+
 <!-- Cloudflare Web Analytics -->
 <script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "b9aa7b35f6d3470e957fb6ad7c77b7e5"}'></script>
 <!-- End Cloudflare Web Analytics -->
@@ -460,6 +778,18 @@
     <button class="btn" onclick="saveDraftNow()" data-i18n="toolbar_save">儲存草稿</button>
     <button class="btn" onclick="duplicateLast()" data-i18n="toolbar_dup">複製上一次</button>
     <button class="btn danger" onclick="resetAll()" data-i18n="toolbar_reset">重設</button>
+    <div class="lang-switch theme-switch" id="themeSwitch">
+      <button class="lang-btn" onclick="toggleThemeMenu(event)" aria-haspopup="true" aria-expanded="false" data-i18n-title="theme_label" title="切換主題">
+        <span class="globe">🎨</span><span id="themeCurrent" class="theme-name">原版</span><span class="caret">▾</span>
+      </button>
+      <div class="lang-menu theme-menu" id="themeMenu" role="menu">
+        <button role="menuitemradio" data-theme="classic" onclick="setTheme('classic')"><i class="sw sw-classic"></i><span data-i18n="theme_classic">原版（預設）</span></button>
+        <button role="menuitemradio" data-theme="mono" onclick="setTheme('mono')"><i class="sw sw-mono"></i><span data-i18n="theme_mono">黑白正式</span></button>
+        <button role="menuitemradio" data-theme="blue" onclick="setTheme('blue')"><i class="sw sw-blue"></i><span data-i18n="theme_blue">藍色商務</span></button>
+        <button role="menuitemradio" data-theme="gray" onclick="setTheme('gray')"><i class="sw sw-gray"></i><span data-i18n="theme_gray">灰色極簡</span></button>
+        <button role="menuitemradio" data-theme="orange" onclick="setTheme('orange')"><i class="sw sw-orange"></i><span data-i18n="theme_orange">橘黃</span></button>
+      </div>
+    </div>
     <div class="lang-switch" id="langSwitch">
       <button class="lang-btn" onclick="toggleLangMenu(event)" aria-haspopup="true" aria-expanded="false">
         <span class="globe">🌐</span><span id="langCurrent">中文</span><span class="caret">▾</span>
@@ -546,6 +876,17 @@
       </div>
       <div class="field"><label data-i18n="lbl_inv_no">請求書番号</label><input id="invoice-number" placeholder="20230430-1"></div>
 
+      <!-- 明細表頭顏色：放在「明細」區塊正上方，讓使用者一眼看到 -->
+      <h2 data-i18n="sec_bar">明細表頭顏色</h2>
+      <div class="bar-picker" id="barPicker" role="radiogroup" aria-label="明細表頭顏色">
+        <button type="button" role="radio" aria-checked="false" data-bar="classic" onclick="setBarTheme('classic')"><i class="bs bs-classic"></i><span data-i18n="bar_classic">原版</span></button>
+        <button type="button" role="radio" aria-checked="false" data-bar="blue" onclick="setBarTheme('blue')"><i class="bs bs-blue"></i><span data-i18n="bar_blue">藍色</span></button>
+        <button type="button" role="radio" aria-checked="false" data-bar="black" onclick="setBarTheme('black')"><i class="bs bs-black"></i><span data-i18n="bar_black">黑色</span></button>
+        <button type="button" role="radio" aria-checked="false" data-bar="gray" onclick="setBarTheme('gray')"><i class="bs bs-gray"></i><span data-i18n="bar_gray">灰色</span></button>
+        <button type="button" role="radio" aria-checked="false" data-bar="orange" onclick="setBarTheme('orange')"><i class="bs bs-orange"></i><span data-i18n="bar_orange">橘黃</span></button>
+      </div>
+      <div class="hint" data-i18n="bar_hint">僅改變請求書「明細」表頭的底色，其他內容與介面主題皆不受影響。</div>
+
       <h2 data-i18n="sec_items">明細</h2>
       <table class="items-table">
         <thead>
@@ -622,6 +963,9 @@ const I18N = {
     th_item: '品目', th_qty: '數量', th_unit: '単位', th_price: '単価', th_amt: '金額',
     btn_add_item: '＋ 明細行を追加', btn_toggle_bank: '切換第二組帳戶',
     lbl_tax_rate: '稅率 %', tax_enabled: '課稅（加總消費稅）', footer_chk: '顯示底部小字（Free Invoice Generator）',
+    bar_classic: '原版', bar_blue: '藍色', bar_black: '黑色', bar_gray: '灰色', bar_orange: '橘黃',
+    sec_bar: '明細表頭顏色',
+    bar_hint: '僅改變請求書「明細」表頭的底色，其他內容與介面主題皆不受影響。',
     sum_subtotal: '小計', sum_tax: '消費税', sum_total: '合計',
     draft_hint: '草稿存於瀏覽器本地（localStorage）。若在此預覽窗內無法存取，將自動改用記憶體暫存（關閉即消失）。建議下載 HTML 檔後用瀏覽器開啟以取得完整草稿功能。',
     draft_empty: '（尚無草稿）',
@@ -632,7 +976,8 @@ const I18N = {
     alert_pdf: 'PDF 生成套件未載入（可能離線）。已改用列印：請在列印對話框選擇「另存為 PDF」。',
     bank_enabled: '帳戶 {0} 啟用', bank_name: '銀行名', bank_code: '金融機関コード',
     branch_name: '支店名', branch_code: '支店コード', account_type: '種別', account_no: '口座番号', account_holder: '口座名義',
-    doc_title: '請求書', doc_inv_no: '請求書番号', party_note: '下記のとおりご請求申し上げます。', amount_lbl: 'ご請求金額', bank_title: '振込先'
+    doc_title: '請求書', doc_inv_no: '請求書番号', party_note: '下記のとおりご請求申し上げます。', amount_lbl: 'ご請求金額', bank_title: '振込先',
+    theme_label: '切換介面主題', theme_classic: '原版（預設）', theme_mono: '黑白正式', theme_blue: '藍色商務', theme_gray: '灰色極簡', theme_orange: '橘黃'
   },
   ja: {
     page_title: 'Free Invoice Generator | 請求書作成ツール',
@@ -657,6 +1002,9 @@ const I18N = {
     th_item: '品目', th_qty: '数量', th_unit: '単位', th_price: '単価', th_amt: '金額',
     btn_add_item: '＋ 明細行を追加', btn_toggle_bank: '2つ目の口座を切替',
     lbl_tax_rate: '税率 %', tax_enabled: '課税（消費税を加算）', footer_chk: 'フッターメモを表示（Free Invoice Generator）',
+    bar_classic: 'オリジナル', bar_blue: 'ブルー', bar_black: 'ブラック', bar_gray: 'グレー', bar_orange: 'オレンジ',
+    sec_bar: '明細ヘッダーの色',
+    bar_hint: '請求書「明細」ヘッダーの背景色のみを変更します。本文や画面テーマには影響しません。',
     sum_subtotal: '小計', sum_tax: '消費税', sum_total: '合計',
     draft_hint: '下書きはブラウザ内（localStorage）に保存。このプレビュー枠で保存できない場合はメモリ保存に切替（閉じると消えます）。HTMLを保存してブラウザで開くと全機能利用可。',
     draft_empty: '（下書きなし）',
@@ -667,7 +1015,8 @@ const I18N = {
     alert_pdf: 'PDFライブラリが読み込めません（オフライン等）。印刷に切り替えます：「PDFとして保存」を選択してください。',
     bank_enabled: '口座 {0} を有効化', bank_name: '銀行名', bank_code: '金融機関コード',
     branch_name: '支店名', branch_code: '支店コード', account_type: '種別', account_no: '口座番号', account_holder: '口座名義',
-    doc_title: '請求書', doc_inv_no: '請求書番号', party_note: '下記のとおりご請求申し上げます。', amount_lbl: 'ご請求金額', bank_title: '振込先'
+    doc_title: '請求書', doc_inv_no: '請求書番号', party_note: '下記のとおりご請求申し上げます。', amount_lbl: 'ご請求金額', bank_title: '振込先',
+    theme_label: '表示テーマを切替', theme_classic: 'オリジナル（標準）', theme_mono: 'モノクロ・フォーマル', theme_blue: 'ブルー・ビジネス', theme_gray: 'グレー・ミニマル', theme_orange: 'オレンジ'
   }
 };
 let LANG = 'zh';
@@ -683,9 +1032,13 @@ function applyLang() {
   document.documentElement.lang = (LANG === 'ja') ? 'ja' : 'zh-Hant';
   document.title = t('page_title');
   document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.getAttribute('data-i18n')); });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => { el.setAttribute('title', t(el.getAttribute('data-i18n-title'))); });
   const cur = document.getElementById('langCurrent'); if (cur) cur.textContent = (LANG === 'ja') ? '日本語' : '中文';
   const menu = document.querySelectorAll('#langMenu button');
   menu.forEach(b => b.classList.toggle('active', b.dataset.lang === LANG));
+  const tc = document.getElementById('themeCurrent');
+  if (tc) tc.textContent = t((THEME_META[THEME] || THEME_META.classic).i18n);
+  syncToolbarHeight();
 }
 function setLang(lang) {
   if (lang !== 'zh' && lang !== 'ja') return;
@@ -697,11 +1050,78 @@ function setLang(lang) {
 function toggleLangMenu(e) {
   e.stopPropagation();
   const ls = document.getElementById('langSwitch');
+  const ts = document.getElementById('themeSwitch');
+  if (ts) ts.classList.remove('open');
   if (ls) ls.classList.toggle('open');
 }
+
+/* ---------- 0.5 介面主題切換（A4 請求書本體不受影響） ----------
+ * 偏好與首頁共用 localStorage.fig_theme。
+ * 首頁的「黑金品牌」為深色版，本頁不提供 → 自動回落到原版（classic）。
+ * 所有 --doc-* 令牌（紙張、表格線、表頭底色、印章紅）皆不隨主題變動，
+ * 因此 PDF 匯出與列印結果恆定。
+ */
+const THEMES = ['classic', 'mono', 'blue', 'gray', 'orange'];
+const THEME_META = {
+  classic: { i18n: 'theme_classic' },
+  mono:    { i18n: 'theme_mono' },
+  blue:    { i18n: 'theme_blue' },
+  gray:    { i18n: 'theme_gray' },
+  orange:  { i18n: 'theme_orange' }
+};
+let THEME = 'classic';
+try {
+  const s = localStorage.getItem('fig_theme');
+  if (THEMES.indexOf(s) >= 0) THEME = s; // gold 等未支援值 → 保持 classic
+} catch (e) {}
+let themeTimer = null;
+
+function applyTheme(theme, animate) {
+  if (THEMES.indexOf(theme) < 0) theme = 'classic';
+  THEME = theme;
+  const root = document.documentElement;
+  if (animate) {
+    root.classList.add('theme-switching');
+    clearTimeout(themeTimer);
+    themeTimer = setTimeout(function () { root.classList.remove('theme-switching'); }, 300);
+  }
+  if (theme === 'classic') root.removeAttribute('data-theme');
+  else root.setAttribute('data-theme', theme);
+  const cur = document.getElementById('themeCurrent');
+  if (cur) cur.textContent = t((THEME_META[theme] || THEME_META.classic).i18n);
+  document.querySelectorAll('#themeMenu button').forEach(function (b) {
+    const on = b.dataset.theme === theme;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-checked', on ? 'true' : 'false');
+  });
+  syncToolbarHeight();
+}
+function setTheme(theme) {
+  applyTheme(theme, true);
+  try { localStorage.setItem('fig_theme', theme); } catch (e) {}
+  const ts = document.getElementById('themeSwitch'); if (ts) ts.classList.remove('open');
+}
+function toggleThemeMenu(e) {
+  e.stopPropagation();
+  const ts = document.getElementById('themeSwitch');
+  const ls = document.getElementById('langSwitch');
+  if (ls) ls.classList.remove('open');
+  if (ts) ts.classList.toggle('open');
+}
+/** 工具列可能因語言／主題名稱長度或視窗寬度而換行，需把實際高度同步給 sticky 表單面板 */
+function syncToolbarHeight() {
+  const tb = document.querySelector('.toolbar');
+  if (!tb) return;
+  const h = Math.round(tb.getBoundingClientRect().height);
+  if (h > 0) document.documentElement.style.setProperty('--toolbar-h', h + 'px');
+}
+window.addEventListener('resize', syncToolbarHeight);
+
 document.addEventListener('click', function (e) {
   const ls = document.getElementById('langSwitch');
   if (ls && !ls.contains(e.target)) ls.classList.remove('open');
+  const ts = document.getElementById('themeSwitch');
+  if (ts && !ts.contains(e.target)) ts.classList.remove('open');
 });
 
 /* ---------- 1. 常數與預設 ---------- */
@@ -805,7 +1225,9 @@ function createDefaultState() {
     taxRate: 10,
     taxEnabled: false,
     banks: [randomBank(), randomBank()],
-    showFooter: true
+    showFooter: true,
+    /* 明細表頭顏色：文件級設定（會存進草稿、會影響 PDF），與介面主題無關 */
+    barTheme: 'classic'
   };
 }
 
@@ -847,6 +1269,34 @@ function flash(msg, ms) {
 /* ---------- 3. 狀態（含 migration） ---------- */
 let state = createDefaultState();
 
+/* ---------- 3.1 明細表頭顏色（文件級，與介面主題正交） ----------
+ * 只改 #invoicePage 的 data-bar 屬性，由 CSS 覆寫 --doc-header-bg。
+ * 屬性寫在元素上（不是 innerHTML），因此 renderPreview() 重建內容後仍會保留；
+ * buildExportNode() 用 cloneNode(true)，屬性會一併複製到 PDF 用的離線副本。 */
+const BAR_THEMES = ['classic', 'blue', 'black', 'gray', 'orange'];
+
+function applyBarTheme() {
+  const v = BAR_THEMES.indexOf(state.barTheme) >= 0 ? state.barTheme : 'classic';
+  const page = document.getElementById('invoicePage');
+  if (page) page.setAttribute('data-bar', v);
+  const picker = document.getElementById('barPicker');
+  if (picker) {
+    Array.prototype.forEach.call(picker.querySelectorAll('button'), function (b) {
+      const on = b.dataset.bar === v;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+  }
+}
+
+function setBarTheme(v) {
+  if (BAR_THEMES.indexOf(v) < 0) v = 'classic';
+  if (state.barTheme === v) return;
+  state.barTheme = v;
+  applyBarTheme();
+  scheduleSave();
+}
+
 // 舊版 stampUrl/stampText → 新版 companySeal 遷移
 function migrateState(s) {
   if (!s || !s.issuer) return s;
@@ -861,6 +1311,8 @@ function migrateState(s) {
   }
   iss.companySeal = iss.companySeal || { url: '', text: DEFAULT_COMPANY_SEAL_TEXT };
   iss.personalSeal = iss.personalSeal || { url: '', text: '' };
+  // 舊草稿沒有 barTheme → 補預設，避免載入後表頭變透明
+  if (BAR_THEMES.indexOf(s.barTheme) < 0) s.barTheme = 'classic';
   return s;
 }
 
@@ -1065,6 +1517,7 @@ function renderPreview() {
     renderFooter();
 
   updateSummary(c);
+  applyBarTheme();
   fitInvoice();
 }
 
@@ -1520,7 +1973,13 @@ function init() {
   renderPreview();
   renderDrafts();
   bindForm();
+  applyTheme(THEME, false);
   applyLang();
+  syncToolbarHeight();
+  // Noto Sans JP 為 webfont，載入後工具列高度可能改變 → 再同步一次 sticky 位移
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(function () { syncToolbarHeight(); }).catch(function () {});
+  }
 }
 init();
 </script>
